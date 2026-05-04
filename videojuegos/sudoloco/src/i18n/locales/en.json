@@ -1,0 +1,33 @@
+{
+  "common": {
+    "start": "Start",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "back": "Back",
+    "save": "Save",
+    "loading": "Loading..."
+  },
+  "tabs": {
+    "home": "Home",
+    "microgames": "Microgames",
+    "stories": "Stories",
+    "profile": "Profile"
+  },
+  "home": {
+    "title": "sudoloco",
+    "subtitle": "Sudoku with a crazy twist",
+    "modes": {
+      "sudoloco": "Sudoloco",
+      "versusIslas": "Versus Islands",
+      "versusMar": "Versus Sea",
+      "story": "Tale",
+      "history": "Story"
+    }
+  },
+  "difficulty": {
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "hard": "Hard",
+    "expert": "Expert"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "common": {
+    "start": "Empezar",
+    "continue": "Continuar",
+    "cancel": "Cancelar",
+    "back": "Atrás",
+    "save": "Guardar",
+    "loading": "Cargando..."
+  },
+  "tabs": {
+    "home": "Inicio",
+    "microgames": "Microjuegos",
+    "stories": "Cuentos",
+    "profile": "Perfil"
+  },
+  "home": {
+    "title": "sudoloco",
+    "subtitle": "Sudoku con un toque loco",
+    "modes": {
+      "sudoloco": "Sudoloco",
+      "versusIslas": "Versus Islas",
+      "versusMar": "Versus Mar",
+      "story": "Cuento",
+      "history": "Historia"
+    }
+  },
+  "difficulty": {
+    "beginner": "Principiante",
+    "intermediate": "Intermedio",
+    "hard": "Difícil",
+    "expert": "Experto"
+  }
+}
