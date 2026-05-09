@@ -24,6 +24,7 @@ export const colors = {
     cellBgFixed: '#f1f5f9',
     cellBgSelected: '#dbeafe',
     cellBgError: '#fee2e2',
+    cellBgPeer: '#eff6ff',
     line: '#cbd5e1',
     thickLine: '#0f172a',
   },
