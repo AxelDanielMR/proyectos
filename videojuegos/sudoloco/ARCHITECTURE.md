@@ -104,7 +104,7 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 /users/{uid}
   displayName, email, symbolPackId, difficultyPreferred,
   unlockedMicrogames[], cuentosCompleted[], historiaProgress,
-  stats: { wins, losses, totalGames }, createdAt, updatedAt
+  stats: { wins, losses, totalGames, highscore }, createdAt, updatedAt
 
 /matches/{matchId}                # Versus Islas
   mode, hostId, guestId, code, difficulty, seed,
@@ -176,7 +176,70 @@ computeProgress(board, solution): number  // 0..100
 
 ---
 
-## 7. Microjuegos (plugin registry)
+## 7. Modo Sudoloco — Mecánicas roguelike
+
+### Run state
+
+La sesión es una **run infinita**: siempre termina en game over. El objetivo es superar el propio highscore.
+
+```ts
+interface RunState {
+  level: number;         // número de puzzle en la run (empieza en 1)
+  lives: number;         // vidas restantes (inicio: 3)
+  timeRemaining: number; // segundos en el contador
+  score: number;         // puntuación acumulada (persiste como highscore)
+  hints: number;         // usos de pista disponibles
+  goldenCells: number;   // usos de casilla dorada disponibles
+  phase: 'playing' | 'microgame' | 'between_levels' | 'gameover';
+}
+```
+
+### Condiciones de fin de run
+
+| Condición | Efecto |
+|---|---|
+| `timeRemaining === 0` | Game over inmediato |
+| `lives === 0` | Game over inmediato |
+| Colocar número incorrecto | `lives--` |
+
+### Timer (se acumula entre puzzles)
+
+- El timer **no resetea** al completar un nivel — se acumula durante toda la run.
+- Cada celda correctamente colocada añade tiempo según la dificultad del nivel:
+
+| Dificultad | Segundos por celda correcta |
+|---|---|
+| beginner | +4 s |
+| intermediate | +3 s |
+| hard | +2 s |
+| expert | +2 s |
+
+- Timer inicial al empezar una run: **180 s** (definido en `core/sudoku/progression.ts`).
+
+### Progresión de dificultad
+
+```
+Niveles 1–3:   beginner      (36–40 pistas)
+Niveles 4–7:   intermediate  (30–35 pistas)
+Niveles 8–12:  hard          (26–29 pistas)
+Nivel 13+:     expert        (22–25 pistas)
+```
+
+Encapsulado en `core/sudoku/progression.ts`: `levelConfig(level) → { difficulty, secsPerCell }`.
+
+### Puntuación
+
+| Evento | Puntos |
+|---|---|
+| Celda correcta colocada | `10 × (floor(level / 5) + 1)` |
+| Puzzle completado | `500 × level` |
+| Recompensa de microjuego (score) | variable (ver §8) |
+
+El highscore final se guarda en Firestore (`/users/{uid}/stats.highscore`).
+
+---
+
+## 8. Microjuegos (plugin registry)
 
 Cada microjuego es un módulo autocontenido que implementa:
 
@@ -191,22 +254,49 @@ interface Microgame {
 
 Se registran en `src/features/microjuegos/registry.ts`. Agregar un microjuego = una sola línea de import + `registerMicrogame(...)`. El runner los selecciona aleatoriamente, prefiriendo los **no descubiertos** del usuario, y persiste el `id` en `unlockedMicrogames` cuando aparecen por primera vez.
 
+### Recompensas tipadas
+
+Al ganar un microjuego, el runner llama a `rollReward(level, rng)` (de `core/sudoku/rewards.ts`) y aplica el resultado al `RunState`:
+
+```ts
+type Reward =
+  | { kind: 'score'; amount: number }
+  | { kind: 'life' }
+  | { kind: 'hint' }
+  | { kind: 'golden_cell' }
+  | { kind: 'none' };
+```
+
+Perder o agotar el tiempo → `{ kind: 'none' }`.
+
+### Tabla de probabilidades (interpolada por nivel)
+
+| Recompensa | Nivel 1 | Nivel 10 | Nivel 20+ |
+|---|---|---|---|
+| score bonus | 40 % | 37 % | 33 % |
+| hint (+1) | 25 % | 27 % | 29 % |
+| golden cell | 5 % | 7 % | 10 % |
+| extra life | 5 % | 7 % | 10 % |
+| none | 25 % | 22 % | 18 % |
+
+Las recompensas más fuertes escalan lentamente hacia arriba. La lógica de interpolación vive en `core/sudoku/rewards.ts` (pura, testeable).
+
 ---
 
-## 8. Estado y caché
+## 9. Estado y caché
 
 | Tipo de estado | Solución |
 |---|---|
 | UI local de un componente | `useState` |
 | Estado de una feature (tablero en juego, modo) | Zustand (una store por feature) |
+| Run state completa roguelike (sobrevive cierre) | Zustand + MMKV |
 | Datos remotos (perfil, partidas, capítulos) | React Query |
-| Partida en curso (sobrevive cierre) | MMKV |
 | Tokens, secrets | SecureStore |
 | Idioma seleccionado | MMKV |
 
 ---
 
-## 9. Variables de entorno
+## 10. Variables de entorno
 
 `.env` (no se commitea) y `.env.example` (sí se commitea).
 
@@ -225,7 +315,7 @@ EXPO_PUBLIC_FIREBASE_DATABASE_URL=
 
 ---
 
-## 10. Comandos comunes
+## 11. Comandos comunes
 
 ```bash
 npm start                 # Metro
@@ -235,11 +325,15 @@ npm run typecheck         # tsc --noEmit
 npm run lint              # ESLint
 npm run lint:fix          # ESLint --fix
 npm run format            # Prettier write
+npm test                  # Jest (core)
+npm run test:coverage     # Jest con cobertura
 ```
 
 ---
 
-## 11. Estado actual (Fase 0 ✅)
+## 12. Estado actual
+
+### Fase 0 ✅ — Infraestructura
 
 - [x] Expo Router con tabs (`home`, `microjuegos`, `cuentos`, `perfil`)
 - [x] NativeWind 4 + Reanimated 4 funcionando
@@ -253,63 +347,86 @@ npm run format            # Prettier write
 - [x] ESLint + Prettier + tsconfig estricto + path aliases
 - [x] Bundle Android verificado (`expo export` exitoso)
 
+### Fase 1 ✅ — Núcleo Sudoku (61 tests)
+
+- [x] `core/sudoku/prng.ts` — PRNG determinístico por seed (FNV-1a + xorshift)
+- [x] `core/sudoku/validator.ts` — peers pre-computados, `isValid`, `validateMove`, `isBoardSolved`
+- [x] `core/sudoku/solver.ts` — backtracking + MRV heurístico, `countSolutions`, `hasUniqueSolution`
+- [x] `core/sudoku/generator.ts` — genera tablero determinista por seed, unicidad garantizada
+- [x] `core/sudoku/difficulty.ts` — rangos de pistas por dificultad
+- [x] `core/sudoku/progress.ts` — `computeProgress`, `detectBoxCompletion`
+- [x] Tests Jest: **61/61** ✅
+
+### Fase 2 ✅ — UI base
+
+- [x] `ui/Board/` — grilla 9×9, borders thin/thick, peer highlighting
+- [x] `ui/Cell/` — estados (fixed, selected, peer, error), notas 3×3, animaciones Reanimated
+- [x] `ui/NumberPad/` — teclado 3×3 adaptable a SymbolPack, controles notas/borrar
+- [x] `ui/ProgressBar/` — barra animada por pixel width
+- [x] `theme/colors.ts` — token `cellBgPeer` añadido
+
 ---
 
-## 12. Siguientes pasos
+## 13. Siguientes pasos
 
-### Fase 1 — Núcleo Sudoku (sin UI)
-1. `core/sudoku/solver.ts` — backtracking con heurísticas básicas.
-2. `core/sudoku/validator.ts` — chequeo fila/columna/caja, conflictos.
-3. `core/sudoku/generator.ts` — genera tablero por dificultad y semilla; verifica unicidad.
-4. `core/sudoku/difficulty.ts` — heurísticas para clasificar (cuántas pistas, qué técnicas).
-5. **Tests Jest** — meta 100% en `core/sudoku`.
+### Fase 3 — Modo Sudoloco (roguelike, sin UI nueva aún)
 
-### Fase 2 — UI base
-6. `ui/Board/`, `ui/Cell/`, `ui/NumberPad/`, `ui/ProgressBar/` — componentes reutilizables por todos los modos.
-7. Renderizado dinámico según `SymbolPack` activo.
-8. Animaciones Reanimated en selección y feedback de error.
-
-### Fase 3 — Modo Sudoloco (sin microjuegos aún)
-9. `features/sudoloco/store.ts` (Zustand) — tablero, selección, notas, undo.
-10. `features/sudoloco/screen.tsx` — pantalla de partida completa.
-11. Persistencia en MMKV (partida en curso).
+1. `core/sudoku/progression.ts` — `levelConfig(level): { difficulty, secsPerCell }` + constante `INITIAL_TIME_S`. Tests Jest.
+2. `core/sudoku/rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada. Tests Jest.
+3. `features/sudoloco/store.ts` (Zustand) — dos slices:
+   - `RunState`: level, lives, timeRemaining, score, hints, goldenCells, phase.
+   - `BoardState`: board, selectedIndex, notes, errorIndices.
+   - Timer vía `setInterval` dentro del store (start/stop según `phase`).
+4. `features/sudoloco/screen.tsx` — HUD (vidas, timer, score) + tablero + teclado + lógica de transición entre levels.
+5. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (componentes sin estado, solo props).
+6. Persistencia de run en MMKV (sobrevive cierre de app).
+7. Pantalla de game over con highscore local (Firestore en Fase 4).
 
 ### Fase 4 — Auth + perfil
-12. Pantallas de registro/login con Firebase Auth (email + password).
-13. `services/firebase/users.repo.ts` — CRUD de perfil.
-14. Perfil: pack de símbolos preferido, dificultad por defecto.
+
+8. Pantallas de registro/login con Firebase Auth (email + password).
+9. `services/firebase/users.repo.ts` — CRUD de perfil.
+10. Guardar highscore en Firestore (`/users/{uid}/stats.highscore`).
+11. Perfil: pack de símbolos preferido.
 
 ### Fase 5 — Microjuegos
-15. Implementar 3-5 microjuegos iniciales (tap-fast, memory-flash, simon, etc.).
-16. `runner.tsx` — overlay que aparece al completar caja, arranca microjuego, devuelve control.
-17. Persistencia de `unlockedMicrogames` en perfil.
+
+12. Implementar 3–5 microjuegos iniciales (tap-fast, memory-flash, simon, etc.).
+13. `runner.tsx` — overlay que aparece al completar caja, lanza microjuego, aplica `Reward` al `RunState` vía `rollReward`.
+14. Persistencia de `unlockedMicrogames` en perfil.
 
 ### Fase 6 — Cuento
-18. Modelo `StoryChapter` en Firestore + seed con un cuento de prueba.
-19. Pantalla de partida con overlay de imagen tras cada caja.
-20. Vista de carrusel al completar.
+
+15. Modelo `StoryChapter` en Firestore + seed con un cuento de prueba.
+16. Pantalla de partida con overlay de imagen tras cada caja.
+17. Vista de carrusel al completar.
 
 ### Fase 7 — Historia
-21. Lógica de capítulos, progresión, menú de capítulos.
+
+18. Lógica de capítulos, progresión, menú de capítulos.
 
 ### Fase 8 — Versus Islas
-22. Sistema de códigos de partida (Firestore docs con TTL).
-23. Sistema de amigos (subcolección `/users/{uid}/friends`).
-24. Throttled progress sync.
+
+19. Sistema de códigos de partida (Firestore docs con TTL).
+20. Sistema de amigos (subcolección `/users/{uid}/friends`).
+21. Throttled progress sync.
 
 ### Fase 9 — Versus Mar
-25. Reglas de seguridad RTDB (validación de movimientos).
-26. Transacciones de movimiento + scoring.
-27. Indicadores de presencia.
 
-### Fase 10 — Pulido
-28. Animaciones de celebración, sonidos, haptics.
-29. Onboarding.
-30. Builds EAS para producción (Android primero, iOS después).
+22. Reglas de seguridad RTDB (validación de movimientos).
+23. Transacciones de movimiento + scoring.
+24. Indicadores de presencia.
+
+### Fase 10 — UI mejorada + pulido
+
+25. Nueva UI del tablero (diseño pendiente).
+26. Animaciones de celebración al completar puzzle/caja, sonidos, haptics.
+27. Onboarding.
+28. Builds EAS para producción (Android primero, iOS después).
 
 ---
 
-## 13. Decisiones pendientes (cuando toquen)
+## 14. Decisiones pendientes (cuando toquen)
 
 - **Firestore Security Rules**: definir antes de Fase 4. Sin reglas, el plan gratuito está expuesto.
 - **Imágenes de cuentos/historia**: ¿Firebase Storage o assets bundled? Storage permite actualizar sin redeploy; bundled funciona offline.
