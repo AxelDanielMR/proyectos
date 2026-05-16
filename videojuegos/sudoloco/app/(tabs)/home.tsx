@@ -1,9 +1,18 @@
-import { Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Image,
+  type ImageSourcePropType,
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { SudokuBackground } from '@ui/SudokuBackground';
 
 type ModeKey = 'sudoloco' | 'versus' | 'historia' | 'biblio';
 
-const BUTTONS: { key: ModeKey; source: ReturnType<typeof require> }[] = [
+const BUTTONS: { key: ModeKey; source: ImageSourcePropType }[] = [
   { key: 'sudoloco', source: require('../../assets/buttons/sudoloco.png') },
   { key: 'versus', source: require('../../assets/buttons/versus.png') },
   { key: 'historia', source: require('../../assets/buttons/history.png') },
@@ -12,10 +21,12 @@ const BUTTONS: { key: ModeKey; source: ReturnType<typeof require> }[] = [
 
 const BUTTON_ASPECT = 583 / 236;
 const H_PADDING = 16;
+const INK = '#2a1a0a';
+const RED_ACCENT = '#b8302a';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
-  const btnWidth = width - H_PADDING * 2;
+  const btnWidth = Math.min(width * 0.68, 340);
   const btnHeight = btnWidth / BUTTON_ASPECT;
 
   const handlePress = (key: ModeKey) => {
@@ -23,46 +34,64 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#020617' }} edges={['top', 'bottom']}>
-      <View style={{ flex: 1, paddingHorizontal: H_PADDING, paddingVertical: 24 }}>
-        <Text
+    <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <SudokuBackground>
+        <View
           style={{
-            fontSize: 44,
-            fontWeight: '900',
-            letterSpacing: 4,
-            color: '#fcd34d',
-            textShadowColor: '#7c3aed',
-            textShadowOffset: { width: 0, height: 3 },
-            textShadowRadius: 0,
-            marginBottom: 24,
-            textAlign: 'center',
+            flex: 1,
+            paddingHorizontal: H_PADDING,
+            paddingTop: 28,
+            paddingBottom: 24,
+            alignItems: 'center',
           }}
         >
-          SUDOLOCO
-        </Text>
+          <Text
+            style={{
+              fontSize: 42,
+              fontWeight: '900',
+              letterSpacing: 6,
+              color: INK,
+              textShadowColor: 'rgba(184, 48, 42, 0.35)',
+              textShadowOffset: { width: 2, height: 2 },
+              textShadowRadius: 0,
+            }}
+          >
+            SUDOLOCO
+          </Text>
+          <View
+            style={{
+              marginTop: 8,
+              height: 2,
+              width: 80,
+              backgroundColor: RED_ACCENT,
+              opacity: 0.7,
+            }}
+          />
 
-        <View style={{ gap: 12 }}>
-          {BUTTONS.map(({ key, source }) => (
-            <Pressable
-              key={key}
-              onPress={() => handlePress(key)}
-              android_ripple={{ color: '#ffffff22' }}
-              style={({ pressed }) => ({
-                width: btnWidth,
-                height: btnHeight,
-                opacity: pressed ? 0.7 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              <Image
-                source={source}
-                resizeMode="contain"
-                style={{ width: btnWidth, height: btnHeight }}
-              />
-            </Pressable>
-          ))}
+          <View style={{ flex: 1, width: '100%', justifyContent: 'center', gap: 22 }}>
+            {BUTTONS.map(({ key, source }) => (
+              <Pressable
+                key={key}
+                onPress={() => handlePress(key)}
+                android_ripple={{ color: '#00000018' }}
+                style={({ pressed }) => ({
+                  alignSelf: 'center',
+                  width: btnWidth,
+                  height: btnHeight,
+                  opacity: pressed ? 0.75 : 1,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                })}
+              >
+                <Image
+                  source={source}
+                  resizeMode="contain"
+                  style={{ width: btnWidth, height: btnHeight }}
+                />
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
+      </SudokuBackground>
     </SafeAreaView>
   );
 }

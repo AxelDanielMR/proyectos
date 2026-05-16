@@ -152,15 +152,21 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 
 ## 6. Motor de Sudoku (`src/core/sudoku/`)
 
-API objetivo (a implementar en Fase 1):
+API objetivo:
 
 ```ts
+// Fase 1 ✅ — ya implementado
 generate(difficulty: Difficulty, seed: string): Puzzle
 solve(board: Board): Board | null
 hasUniqueSolution(board: Board): boolean
 validateMove(board, index, value): MoveResult
 detectBoxCompletion(prev: Board, next: Board): number | null  // 0..8 o null
 computeProgress(board, solution): number  // 0..100
+
+// Fase 3 — pendiente, vive en core/sudoku/hints.ts
+pickHintCell(board, solution, rng): number              // elige celda candidata para pista
+revealCandidate(board, solution, idx): CellValue[]      // candidatos correctos para esa celda
+revealGoldenCell(board, solution, rng): { idx: number; value: CellValue }
 ```
 
 **Dificultad** = combinación de `(número de pistas, técnicas requeridas para resolver)`:
@@ -365,22 +371,43 @@ npm run test:coverage     # Jest con cobertura
 - [x] `ui/ProgressBar/` — barra animada por pixel width
 - [x] `theme/colors.ts` — token `cellBgPeer` añadido
 
+### Fase UI Menú principal ⏸️ — **En pausa con avances** (se retomará luego)
+
+Trabajo de presentación del menú principal en `app/(tabs)/home.tsx`. Pausado tras llegar a un look aceptable; pendiente conectar navegación y refinar tipografía/animaciones.
+
+- [x] Assets pixel-art de los botones en [assets/buttons/](assets/buttons/) (`sudoloco.png`, `versus.png`, `history.png`, `library.png`)
+- [x] `home.tsx` con título **SUDOLOCO**, divisor rojo y 4 botones (orden: Sudoloco → Versus → Historia → Biblio), responsivos vía `useWindowDimensions`
+- [x] Tab bar inferior oculta (`tabBarStyle: { display: 'none' }` en `app/(tabs)/_layout.tsx`)
+- [x] `ui/SudokuBackground/` — fondo crema con cuadrícula sudoku 3×3, degradado vertical (88% de altura, curva `pow 0.55`) y cascada de **22 partículas numéricas** ascendentes (Reanimated)
+- [x] Cascada reactiva al **acelerómetro** (`expo-sensors`): siempre sube, eje X se inclina con el tilt (sensibilidad 0.35, cap 0.45, transición 400ms)
+- [ ] Conectar `onPress` de cada botón a sus rutas (`expo-router`)
+- [ ] Tipografía pixel para el título (¿`PressStart2P` vía `expo-font`?)
+- [ ] Decidir si el fondo se reutiliza en otras pantallas (game over, perfil) o queda exclusivo del home
+- [ ] Revisar consumo del acelerómetro y posibilidad de pausarlo cuando la pantalla pierde foco
+
 ---
 
 ## 13. Siguientes pasos
 
-### Fase 3 — Modo Sudoloco (roguelike, sin UI nueva aún)
+### Fase 3 — Motor compartido + Modo Sudoloco
 
-1. `core/sudoku/progression.ts` — `levelConfig(level): { difficulty, secsPerCell }` + constante `INITIAL_TIME_S`. Tests Jest.
-2. `core/sudoku/rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada. Tests Jest.
-3. `features/sudoloco/store.ts` (Zustand) — dos slices:
-   - `RunState`: level, lives, timeRemaining, score, hints, goldenCells, phase.
-   - `BoardState`: board, selectedIndex, notes, errorIndices.
-   - Timer vía `setInterval` dentro del store (start/stop según `phase`).
-4. `features/sudoloco/screen.tsx` — HUD (vidas, timer, score) + tablero + teclado + lógica de transición entre levels.
-5. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (componentes sin estado, solo props).
-6. Persistencia de run en MMKV (sobrevive cierre de app).
-7. Pantalla de game over con highscore local (Firestore en Fase 4).
+**3a. Núcleo puro extra (`core/sudoku/`)**
+1. `progression.ts` — `levelConfig(level): { difficulty, secsPerCell }` + `INITIAL_TIME_S`. Tests Jest.
+2. `rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada. Tests Jest.
+3. `hints.ts` — `pickHintCell`, `revealCandidate`, `revealGoldenCell`. Tests Jest.
+4. `economy.ts` — `computeRunReward(score, level): { coins }`. Tests Jest.
+
+**3b. Motor de juego compartido (`src/ui/SudokuGame/`)** — ver §15.
+5. `store.ts` — `createSudokuGameStore(opts)`: estado + acciones + callbacks. Tests con Zustand vanilla.
+6. `SudokuGame.tsx` — compone Board + NumberPad + botones hint/golden. Recibe `store` y `pack`.
+7. `hooks.ts` — selectors finos (`useSelectedCell`, `useCellValue(idx)`, etc.) para evitar re-renders.
+
+**3c. Modo Sudoloco (`src/features/sudoloco/`)**
+8. `store.ts` (Zustand) — `RunState`: level, lives, timeRemaining, score, hints, goldenCells, coins, phase. Timer vía `setInterval` start/stop según `phase`.
+9. `screen.tsx` — HUD + `<SudokuGame />` + transiciones de nivel. Suscribe callbacks del motor para sumar tiempo/score/restar vidas/lanzar microjuego.
+10. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (sin estado).
+11. Persistencia de run en MMKV.
+12. Pantalla de game over: calcula coins con `economy.computeRunReward`, escribe highscore + coins en Firestore (Fase 4).
 
 ### Fase 4 — Auth + perfil
 
@@ -426,7 +453,141 @@ npm run test:coverage     # Jest con cobertura
 
 ---
 
-## 14. Decisiones pendientes (cuando toquen)
+## 15. Motor de juego compartido (`src/ui/SudokuGame/`)
+
+Capa intermedia que **todos los modos consumen**. Aísla la sesión de juego (selección, notas, errores, pistas, completitud) para que ningún modo reimplemente esa lógica.
+
+### Estructura
+
+```
+src/ui/SudokuGame/
+├── store.ts            # createSudokuGameStore(opts) — Zustand factory
+├── SudokuGame.tsx      # <SudokuGame store pack /> — compone UI
+├── hooks.ts            # useSudokuGame, selectors
+├── types.ts            # SudokuGameOptions, SudokuGameCallbacks
+└── index.ts
+```
+
+### Por qué `ui/` y no `features/`
+
+- Es infraestructura compartida, no una feature de producto. Las features (modos) viven al consumirla.
+- Convive con `Board`, `Cell`, `NumberPad` — los compone, no compite con ellos.
+- Rendimiento: un solo nivel de import, Zustand selectors finos por celda evitan re-renders, store factory garantiza aislamiento entre instancias (necesario para Versus Mar).
+
+### API del store
+
+```ts
+interface SudokuGameOptions {
+  puzzle: Puzzle;                    // generado en core/sudoku
+  initialHints?: number;             // default 0 (el modo decide)
+  initialGoldenCells?: number;       // default 0
+  rng: PRNG;                         // mismo PRNG del puzzle (determinismo)
+  callbacks?: SudokuGameCallbacks;
+}
+
+interface SudokuGameCallbacks {
+  onCellCorrect?: (idx: number, value: CellValue) => void;
+  onCellIncorrect?: (idx: number, value: CellValue) => void;
+  onBoxComplete?: (boxIndex: number) => void;        // 0..8
+  onPuzzleComplete?: () => void;
+}
+
+interface SudokuGameState {
+  board: Board;
+  selectedIndex: number | null;
+  notesByCell: ReadonlyMap<number, ReadonlySet<CellValue>>;
+  errorIndices: ReadonlySet<number>;
+  hintsRemaining: number;
+  goldenRemaining: number;
+  isNotesMode: boolean;
+  isComplete: boolean;
+}
+
+interface SudokuGameActions {
+  select(idx: number | null): void;
+  place(value: CellValue): void;             // dispara onCellCorrect|Incorrect|BoxComplete
+  toggleNote(value: CellValue): void;
+  toggleNotesMode(): void;
+  erase(): void;
+  useHint(): void;                           // -1 hintsRemaining, llena notas correctas
+  useGoldenCell(): void;                     // -1 goldenRemaining, place() la solución
+  grantHints(n: number): void;               // modos lo usan al aplicar Reward
+  grantGoldenCells(n: number): void;
+}
+```
+
+### Cómo lo consumen los modos
+
+| Modo | Suscribe | Hace |
+|---|---|---|
+| **Sudoloco** | `onCellCorrect`, `onCellIncorrect`, `onBoxComplete`, `onPuzzleComplete` | suma segundos, score; resta vidas; lanza microjuego; transiciona a siguiente nivel |
+| **Cuento** | `onBoxComplete` | revela imagen `boxIndex` del cuento |
+| **Historia** | `onBoxComplete`, `onPuzzleComplete` | revela imagen del capítulo; al completar marca capítulo |
+| **Versus Islas** | `onCellCorrect` | throttle de `progress[uid]` a Firestore |
+| **Versus Mar** | `onCellCorrect` | `runTransaction()` sobre `/liveMatches/{id}` para sumar score |
+
+El motor **no sabe** de timers, monedas, redes ni microjuegos. Esos viven en cada modo.
+
+---
+
+## 16. Economía y customización
+
+### Monedas
+
+- Persistentes en perfil: `/users/{uid}/wallet.coins`.
+- Se ganan **solo al final de una run de Sudoloco** (no como Reward de microjuego — los rewards siguen enfocados en supervivencia).
+- Fórmula en `core/sudoku/economy.ts` (puro, testeable):
+
+  ```ts
+  computeRunReward(score: number, level: number): { coins: number }
+  ```
+
+  Propuesta inicial: `coins = floor(score / 100) + floor(level / 3)`. Iterar tras playtesting.
+
+### Tienda
+
+- Vive como pantalla dentro de **Biblioteca** (la tab `cuentos.tsx` se renombra a `biblio.tsx` cuando toque). Alternativa: feature dedicada `src/features/shop/`.
+- Catálogo: packs de símbolos (Fase 7 de tienda) y, a futuro, skins de tablero (Fase posterior).
+- Modelo Firestore:
+
+  ```
+  /users/{uid}
+    wallet:    { coins }
+    unlocked:  { symbolPackIds: string[], boardSkinIds: string[] }
+    active:    { symbolPackId, boardSkinId }
+  ```
+
+- Compra = transacción Firestore: resta coins, agrega id a `unlocked.symbolPackIds`. Validación cliente, regla de seguridad valida que `coins >= price` (almacenar precio en código cliente firmado por hash o en doc `/catalog/{id}` solo-lectura).
+
+### Packs de símbolos en scope
+
+| Pack | Estado | Notas |
+|---|---|---|
+| `numbers` | ✅ implementado | gratis, default |
+| `colors`  | ✅ implementado | gratis (o desbloqueo barato) |
+| `figures` | pendiente | geométricas (círculo, triángulo, cuadrado, etc.) — render con SVG o `View` |
+| `sprites` | pendiente | mugiwaras/jojos — assets de imagen, evaluar licencias |
+
+Render desacoplado: el board guarda 1..9, `Cell` recibe `pack` y renderiza acorde a `pack.kind` (`text` / `color` / `image`).
+
+### Skins de tablero (Fase futura — no ahora)
+
+Cuando toque, vivirán en `core/board-skins/` con la misma arquitectura que packs:
+
+```ts
+interface BoardSkin {
+  id: string;
+  name: string;
+  colors: { bg, thickLine, thinLine, cellSelected, cellPeer, cellError, ... };
+  // futuro: frame asset, corner ornaments, background pattern
+}
+```
+
+Por ahora, el skin activo = `theme/colors.ts` único. **No** introducir abstracción de skins hasta que haya al menos 2 skins reales que justifiquen el costo.
+
+---
+
+## 17. Decisiones pendientes (cuando toquen)
 
 - **Firestore Security Rules**: definir antes de Fase 4. Sin reglas, el plan gratuito está expuesto.
 - **Imágenes de cuentos/historia**: ¿Firebase Storage o assets bundled? Storage permite actualizar sin redeploy; bundled funciona offline.
