@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import type { CellValue } from '@core/sudoku';
 import type { SymbolItem, SymbolPack } from '@core/symbols';
@@ -61,6 +61,9 @@ function SymbolContent({ item }: { item: SymbolItem }) {
   if (item.kind === 'color') {
     return <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: item.hex }} />;
   }
+  if (item.kind === 'image') {
+    return <Image source={item.source} style={{ width: 36, height: 36 }} resizeMode="contain" />;
+  }
   return null;
 }
 
@@ -75,7 +78,7 @@ export function NumberPad({
   eraseLabel = '⌫',
 }: NumberPadProps) {
   return (
-    <View style={{ opacity: disabled ? 0.4 : 1 }} pointerEvents={disabled ? 'none' : 'auto'}>
+    <View style={[styles.pad, { opacity: disabled ? 0.4 : 1 }]} pointerEvents={disabled ? 'none' : 'auto'}>
       {[0, 1, 2].map((row) => (
         <View key={row} style={styles.row}>
           {[0, 1, 2].map((col) => {
@@ -110,6 +113,9 @@ export function NumberPad({
 }
 
 const styles = StyleSheet.create({
+  pad: {
+    width: '100%',
+  },
   row: {
     flexDirection: 'row',
   },

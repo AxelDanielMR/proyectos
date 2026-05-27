@@ -587,6 +587,83 @@ Por ahora, el skin activo = `theme/colors.ts` único. **No** introducir abstracc
 
 ---
 
+## 18. Reglas de rendimiento
+
+Patrones obligatorios para evitar los problemas de performance que aparecen en apps RN con tableros grandes y timers frecuentes. Aplicar desde el inicio — son difíciles de retrofit.
+
+### Separación estricta de stores
+
+`RunState` (timer, vidas, score) y `BoardState` (tablero, celdas, notas) deben vivir en **stores de Zustand distintos**. Si comparten store, cada tick del timer (1/s) re-renderiza el tablero completo (81 celdas).
+
+```
+RunStore  →  <TimerDisplay />  re-renderiza cada segundo
+GameStore →  <Board />         re-renderiza solo en moves
+```
+
+### Selectors finos por celda + `shallow`
+
+Cada `<Cell>` se suscribe solo a los datos que le corresponden. Nunca leer el store entero dentro de un Cell.
+
+```ts
+// hooks.ts
+export const useCellState = (idx: number) =>
+  useSudokuStore(
+    (s) => ({
+      value:      s.board[idx],
+      isFixed:    s.puzzle.fixed.has(idx),
+      isSelected: s.selectedIndex === idx,
+      isPeer:     s.selectedIndex != null && PEERS[s.selectedIndex].has(idx),
+      isError:    s.errorIndices.has(idx),
+    }),
+    shallow,  // evita re-render si el objeto resultante no cambió
+  );
+```
+
+Con esto, `select(idx)` solo re-renderiza ~20 celdas (la seleccionada + sus peers), no las 81.
+
+### `React.memo` como barrera explícita
+
+Aplicar en: `<Cell>`, `<NumberPad>`, `<LivesDisplay>`, `<TimerDisplay>`, `<ScoreDisplay>`. Sin `memo`, cualquier re-render del padre los arrastra aunque sus props no hayan cambiado.
+
+### Acelerómetro → `useSharedValue` directo, nunca `setState`
+
+Los datos del sensor llegan a ~60fps. Si pasan por `useState` o Zustand, generan 60 re-renders/segundo en el hilo JS. El dato debe ir del sensor directamente a Reanimated:
+
+```ts
+const tilt = useSharedValue(0);
+// dentro del listener:
+tilt.value = withTiming(accel.x * 0.35, { duration: 400 });
+// el estilo animado lee tilt.value en el UI thread — React no se entera
+```
+
+### `<Board>` siempre montado durante microjuegos
+
+Al lanzar un microjuego, **no desmontar** el tablero. Usar `opacity: 0` + `pointerEvents: 'none'` animados con Reanimated. Desmontar implica pérdida de estado + costo de remontaje.
+
+### PEERS pre-computados fuera del render
+
+La lista de celdas peer de cada índice se calcula una sola vez al arrancar el módulo, nunca dentro de un render ni de un selector:
+
+```ts
+// Calculado una vez en validator.ts al importar el módulo
+export const PEERS: ReadonlySet<number>[] = precomputePeers();
+```
+
+Esto convierte el lookup de peers en O(1) en lugar de recalcularlo en cada render de celda.
+
+### Tabla resumen
+
+| Regla | Riesgo que previene |
+|---|---|
+| `RunState` / `BoardState` en stores separados | Timer contamina re-renders del tablero |
+| `useCellState(idx)` + `shallow` | 81 re-renders por cada movimiento |
+| `React.memo` en Cell y HUD | Re-renders en cascada desde el padre |
+| Acelerómetro → `useSharedValue` | 60 re-renders/s en el hilo JS |
+| Board siempre montado, ocultar con opacity | Costo de montaje en cada microjuego |
+| PEERS pre-computados al importar | Recálculo O(81²) en cada render de celda |
+
+---
+
 ## 17. Decisiones pendientes (cuando toquen)
 
 - **Firestore Security Rules**: definir antes de Fase 4. Sin reglas, el plan gratuito está expuesto.

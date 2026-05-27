@@ -62,13 +62,14 @@ function SymbolDisplay({
     );
   }
   const size = small ? 6 : 22;
+  const imgSize = small ? 10 : 32;
   if (item.kind === 'color') {
     return (
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: item.hex }} />
     );
   }
   if (item.kind === 'image') {
-    return <Image source={item.source} style={{ width: size, height: size }} resizeMode="contain" />;
+    return <Image source={item.source} style={{ width: imgSize, height: imgSize }} resizeMode="contain" />;
   }
   return null;
 }

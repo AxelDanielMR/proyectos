@@ -1,4 +1,4 @@
-export type SymbolPackId = 'numbers' | 'colors' | 'shapes' | 'mugiwaras' | 'jojos';
+export type SymbolPackId = 'numbers' | 'colors' | 'pixel' | 'shapes' | 'mugiwaras' | 'jojos';
 
 export interface SymbolPack {
   readonly id: SymbolPackId;

@@ -5,7 +5,8 @@
     "cancel": "Cancelar",
     "back": "Atrás",
     "save": "Guardar",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "error": "Algo salió mal. Intenta de nuevo."
   },
   "tabs": {
     "home": "Inicio",
@@ -29,5 +30,37 @@
     "intermediate": "Intermedio",
     "hard": "Difícil",
     "expert": "Experto"
+  },
+  "auth": {
+    "loginTitle": "Iniciar sesión",
+    "registerTitle": "Crear cuenta",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "displayName": "Nombre de usuario",
+    "loginBtn": "Entrar",
+    "registerBtn": "Registrarse",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "createAccount": "Crear una",
+    "signInInstead": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "errors": {
+      "invalidEmail": "Correo inválido.",
+      "wrongPassword": "Contraseña incorrecta.",
+      "emailInUse": "Ese correo ya está registrado.",
+      "weakPassword": "La contraseña debe tener al menos 6 caracteres.",
+      "userNotFound": "No existe una cuenta con ese correo.",
+      "generic": "Error de autenticación. Intenta de nuevo."
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "highscore": "Récord",
+    "coins": "Monedas",
+    "totalGames": "Partidas",
+    "symbolPack": "Pack de símbolos",
+    "numbers": "Números",
+    "colors": "Colores",
+    "noData": "Sin datos"
   }
 }

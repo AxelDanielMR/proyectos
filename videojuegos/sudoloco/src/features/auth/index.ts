@@ -1,2 +1,3 @@
-// Auth feature: login/register screens, current-user store, profile bootstrap.
-export {};
+export { useAuthStore } from './store';
+export type { AuthStatus } from './store';
+export { useUserProfile, useCreateUser, useUpdateSymbolPack, userKeys } from './queries';

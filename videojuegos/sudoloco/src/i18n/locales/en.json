@@ -5,7 +5,8 @@
     "cancel": "Cancel",
     "back": "Back",
     "save": "Save",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "error": "Something went wrong. Please try again."
   },
   "tabs": {
     "home": "Home",
@@ -29,5 +30,37 @@
     "intermediate": "Intermediate",
     "hard": "Hard",
     "expert": "Expert"
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "registerTitle": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "displayName": "Username",
+    "loginBtn": "Sign in",
+    "registerBtn": "Sign up",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "createAccount": "Create one",
+    "signInInstead": "Sign in",
+    "signOut": "Sign out",
+    "errors": {
+      "invalidEmail": "Invalid email.",
+      "wrongPassword": "Wrong password.",
+      "emailInUse": "That email is already registered.",
+      "weakPassword": "Password must be at least 6 characters.",
+      "userNotFound": "No account found with that email.",
+      "generic": "Authentication error. Please try again."
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "highscore": "High Score",
+    "coins": "Coins",
+    "totalGames": "Games",
+    "symbolPack": "Symbol Pack",
+    "numbers": "Numbers",
+    "colors": "Colors",
+    "noData": "No data"
   }
 }

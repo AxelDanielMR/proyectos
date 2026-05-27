@@ -3,17 +3,17 @@ import type { SymbolPack } from './types';
 export const numbersPack: SymbolPack = {
   id: 'numbers',
   name: 'Números',
-  kind: 'text',
+  kind: 'image',
   items: [
-    { kind: 'text', value: '1' },
-    { kind: 'text', value: '2' },
-    { kind: 'text', value: '3' },
-    { kind: 'text', value: '4' },
-    { kind: 'text', value: '5' },
-    { kind: 'text', value: '6' },
-    { kind: 'text', value: '7' },
-    { kind: 'text', value: '8' },
-    { kind: 'text', value: '9' },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/1.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/2.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/3.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/4.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/5.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/6.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/7.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/8.png') },
+    { kind: 'image', source: require('../../../assets/symbols/numbers/9.png') },
   ],
 };
 
@@ -33,6 +33,7 @@ export const colorsPack: SymbolPack = {
     { kind: 'color', hex: '#64748b' },
   ],
 };
+
 
 export const SYMBOL_PACKS: readonly SymbolPack[] = [numbersPack, colorsPack];
 

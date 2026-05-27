@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { SudokuBackground } from '@ui/SudokuBackground';
 
@@ -26,11 +27,13 @@ const RED_ACCENT = '#b8302a';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
+  const router = useRouter();
   const btnWidth = Math.min(width * 0.68, 340);
   const btnHeight = btnWidth / BUTTON_ASPECT;
 
   const handlePress = (key: ModeKey) => {
-    console.log('mode pressed:', key);
+    if (key === 'sudoloco') router.push('/sudoloco');
+    // resto de modos pendientes
   };
 
   return (
