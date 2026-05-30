@@ -9,22 +9,15 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export interface NumberPadProps {
   pack: SymbolPack;
   onSelect: (value: CellValue) => void;
-  onErase: () => void;
-  onToggleNotes: () => void;
-  isNotesMode: boolean;
   disabled?: boolean;
-  notesLabel?: string;
-  eraseLabel?: string;
 }
 
 function PadButton({
   onPress,
   children,
-  active = false,
 }: {
   onPress: () => void;
   children: React.ReactNode;
-  active?: boolean;
 }) {
   const scale = useSharedValue(1);
 
@@ -35,17 +28,9 @@ function PadButton({
   return (
     <AnimatedPressable
       onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.88, { damping: 15 });
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, { damping: 15 });
-      }}
-      style={[
-        animatedStyle,
-        styles.padButton,
-        active && styles.padButtonActive,
-      ]}
+      onPressIn={() => { scale.value = withSpring(0.88, { damping: 15 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+      style={[animatedStyle, styles.padButton]}
     >
       {children}
     </AnimatedPressable>
@@ -54,29 +39,18 @@ function PadButton({
 
 function SymbolContent({ item }: { item: SymbolItem }) {
   if (item.kind === 'text') {
-    return (
-      <Text style={styles.padText}>{item.value}</Text>
-    );
+    return <Text style={styles.padText}>{item.value}</Text>;
   }
   if (item.kind === 'color') {
-    return <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: item.hex }} />;
+    return <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: item.hex }} />;
   }
   if (item.kind === 'image') {
-    return <Image source={item.source} style={{ width: 36, height: 36 }} resizeMode="contain" />;
+    return <Image source={item.source} style={{ width: 28, height: 28 }} resizeMode="contain" />;
   }
   return null;
 }
 
-export function NumberPad({
-  pack,
-  onSelect,
-  onErase,
-  onToggleNotes,
-  isNotesMode,
-  disabled = false,
-  notesLabel = 'Notas',
-  eraseLabel = '⌫',
-}: NumberPadProps) {
+export function NumberPad({ pack, onSelect, disabled = false }: NumberPadProps) {
   return (
     <View style={[styles.pad, { opacity: disabled ? 0.4 : 1 }]} pointerEvents={disabled ? 'none' : 'auto'}>
       {[0, 1, 2].map((row) => (
@@ -92,29 +66,14 @@ export function NumberPad({
           })}
         </View>
       ))}
-
-      <View style={[styles.row, { marginTop: 6 }]}>
-        <PadButton onPress={onToggleNotes} active={isNotesMode}>
-          <Text
-            style={[
-              styles.controlText,
-              isNotesMode && { color: '#ffffff' },
-            ]}
-          >
-            {notesLabel}
-          </Text>
-        </PadButton>
-        <PadButton onPress={onErase}>
-          <Text style={styles.controlText}>{eraseLabel}</Text>
-        </PadButton>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   pad: {
-    width: '100%',
+    width: '78%',
+    alignSelf: 'center',
   },
   row: {
     flexDirection: 'row',
@@ -122,23 +81,15 @@ const styles = StyleSheet.create({
   padButton: {
     flex: 1,
     aspectRatio: 1,
-    margin: 4,
-    borderRadius: 12,
+    margin: 2,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.bg.surface,
   },
-  padButtonActive: {
-    backgroundColor: colors.brand.primary,
-  },
   padText: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text.primary,
-  },
-  controlText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text.secondary,
   },
 });

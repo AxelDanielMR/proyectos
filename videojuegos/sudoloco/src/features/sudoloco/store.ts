@@ -4,15 +4,17 @@ import type { Puzzle } from '@core/sudoku';
 import { computeRunReward } from '@core/sudoku';
 import type { Rng } from '@core/sudoku';
 
-export type RunPhase = 'idle' | 'playing' | 'microgame' | 'between_levels' | 'gameover';
+export type RunPhase = 'idle' | 'playing' | 'paused' | 'microgame' | 'between_levels' | 'gameover';
 
 export interface RunState {
   phase: RunPhase;
   level: number;
-  lives: number;
+  lives: number;         // corazones normales (con ventajas)
+  crystalHearts: number; // corazones de cristal (sin ventajas)
   timeRemaining: number;
   score: number;
   hints: number;
+  silverCells: number;
   goldenCells: number;
   coinsEarned: number;
   puzzle: Puzzle | null;
@@ -27,6 +29,8 @@ interface RunActions {
   onBoxComplete(boxIndex: number): void;
   onPuzzleComplete(): void;
   tick(): void;
+  pauseRun(): void;
+  resumeRun(): void;
   grantReward(reward: import('@core/sudoku').Reward): void;
   exitMicrogame(): void;
   nextLevel(): void;
@@ -38,39 +42,31 @@ function buildSeed(base: string, level: number): string {
   return `${base}:${level}`;
 }
 
-export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
+const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   phase: 'idle',
   level: 1,
   lives: 3,
+  crystalHearts: 0,
   timeRemaining: INITIAL_TIME_S,
   score: 0,
   hints: 0,
+  silverCells: 0,
   goldenCells: 0,
   coinsEarned: 0,
+  seed: '',
+};
+
+export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
+  ...INITIAL_STATE,
   puzzle: null,
   rng: null,
-  seed: '',
 
   startRun(seed) {
     const runSeed = seed ?? String(Date.now());
     const rng = createRng(runSeed);
     const { difficulty } = levelConfig(1);
     const puzzle = generate(difficulty, buildSeed(runSeed, 1));
-
-    const state: Partial<RunState> = {
-      phase: 'playing',
-      level: 1,
-      lives: 3,
-      timeRemaining: INITIAL_TIME_S,
-      score: 0,
-      hints: 0,
-      goldenCells: 0,
-      coinsEarned: 0,
-      puzzle,
-      rng,
-      seed: runSeed,
-    };
-    set(state as RunState);
+    set({ ...INITIAL_STATE, phase: 'playing', puzzle, rng, seed: runSeed });
   },
 
   onCellCorrect(idx) {
@@ -78,10 +74,7 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     if (phase !== 'playing') return;
     const { secsPerCell } = levelConfig(level);
     const multiplier = Math.floor(level / 5) + 1;
-    set((s) => ({
-      timeRemaining: s.timeRemaining + secsPerCell,
-      score: score + 10 * multiplier,
-    }));
+    set((s) => ({ timeRemaining: s.timeRemaining + secsPerCell, score: score + 10 * multiplier }));
     void idx;
   },
 
@@ -89,8 +82,14 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     const { phase } = get();
     if (phase !== 'playing') return;
     set((s) => {
+      // Crystal hearts absorb errors first (no time bonus)
+      if (s.crystalHearts > 0) {
+        return { crystalHearts: s.crystalHearts - 1 };
+      }
+      // Normal hearts: lose one + gain 30s bonus
       const lives = s.lives - 1;
-      return { lives, phase: lives <= 0 ? 'gameover' : 'playing' };
+      if (lives <= 0) return { lives, phase: 'gameover' as RunPhase };
+      return { lives, timeRemaining: s.timeRemaining + 30 };
     });
     const { phase: nextPhase } = get();
     if (nextPhase === 'gameover') get()._finishRun();
@@ -114,13 +113,23 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     if (phase !== 'playing') return;
     set((s) => {
       const timeRemaining = s.timeRemaining - 1;
-      if (timeRemaining <= 0) {
-        return { timeRemaining: 0, phase: 'gameover' };
+      if (timeRemaining > 0) return { timeRemaining };
+      // Time ran out — normal hearts (>1) save you with +60s
+      if (s.lives > 1) {
+        return { lives: s.lives - 1, timeRemaining: 60 };
       }
-      return { timeRemaining };
+      return { timeRemaining: 0, phase: 'gameover' as RunPhase };
     });
     const { phase: nextPhase } = get();
     if (nextPhase === 'gameover') get()._finishRun();
+  },
+
+  pauseRun() {
+    if (get().phase === 'playing') set({ phase: 'paused' });
+  },
+
+  resumeRun() {
+    if (get().phase === 'paused') set({ phase: 'playing' });
   },
 
   grantReward(reward) {
@@ -128,14 +137,23 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
       case 'score':
         set((s) => ({ score: s.score + reward.amount }));
         break;
+      case 'time':
+        set((s) => ({ timeRemaining: s.timeRemaining + reward.amount }));
+        break;
       case 'hint':
         set((s) => ({ hints: s.hints + 1 }));
+        break;
+      case 'silver_cell':
+        set((s) => ({ silverCells: s.silverCells + 1 }));
         break;
       case 'golden_cell':
         set((s) => ({ goldenCells: s.goldenCells + 1 }));
         break;
       case 'life':
         set((s) => ({ lives: s.lives + 1 }));
+        break;
+      case 'crystal_heart':
+        set((s) => ({ crystalHearts: s.crystalHearts + 1 }));
         break;
       case 'none':
         break;
@@ -152,23 +170,11 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     const nextLevel = level + 1;
     const { difficulty } = levelConfig(nextLevel);
     const puzzle = generate(difficulty, buildSeed(seed, nextLevel));
-    set({ level: nextLevel, puzzle, phase: 'playing', rng });
+    set((s) => ({ level: nextLevel, puzzle, phase: 'playing', rng, timeRemaining: s.timeRemaining + 60 }));
   },
 
   resetRun() {
-    set({
-      phase: 'idle',
-      level: 1,
-      lives: 3,
-      timeRemaining: INITIAL_TIME_S,
-      score: 0,
-      hints: 0,
-      goldenCells: 0,
-      coinsEarned: 0,
-      puzzle: null,
-      rng: null,
-      seed: '',
-    });
+    set({ ...INITIAL_STATE, puzzle: null, rng: null });
   },
 
   _finishRun() {
@@ -177,4 +183,3 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     set({ coinsEarned: coins });
   },
 }));
-

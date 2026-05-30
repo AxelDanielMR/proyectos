@@ -17,7 +17,6 @@ type SmallKey = 'config' | 'profile' | 'store';
 const BUTTON_ASPECT = 583 / 236;
 const H_PADDING = 16;
 const SMALL_SIZE = 48;
-const SMALL_GAP = 14;
 const INK = '#2a1a0a';
 const RED_ACCENT = '#b8302a';
 
@@ -26,15 +25,8 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const usable = width - H_PADDING * 2;
-
-  // Primary buttons (SUDOLOCO, VERSUS): nearly full usable width
-  const primaryW = usable;
+  const primaryW = usable - SMALL_SIZE - 16;
   const primaryH = primaryW / BUTTON_ASPECT;
-
-  // Secondary buttons (BIBLIO, HISTORIA): fill the right side of the bottom row
-  // Left side of bottom row = small column (SMALL_SIZE + gap)
-  const secondaryW = usable - SMALL_SIZE - 16;
-  const secondaryH = secondaryW / BUTTON_ASPECT;
 
   const handlePress = (key: ModeKey) => {
     if (key === 'sudoloco') router.push('/sudoloco');
@@ -43,11 +35,8 @@ export default function HomeScreen() {
   const primaryButtons: { key: ModeKey; source: ImageSourcePropType }[] = [
     { key: 'sudoloco', source: require('../../assets/buttons/sudoloco.png') },
     { key: 'versus', source: require('../../assets/buttons/versus.png') },
-  ];
-
-  const secondaryButtons: { key: ModeKey; source: ImageSourcePropType }[] = [
-    { key: 'historia', source: require('../../assets/buttons/history.png') },
-    { key: 'biblio', source: require('../../assets/buttons/librar.png') },
+    { key: 'historia', source: require('../../assets/buttons/history_buttonV1.png') },
+    { key: 'biblio', source: require('../../assets/buttons/library_buttonV1.png') },
   ];
 
   const smallButtons: { key: SmallKey; source: ImageSourcePropType }[] = [
@@ -85,7 +74,7 @@ export default function HomeScreen() {
           <View
             style={{
               marginTop: 8,
-              marginBottom: 32,
+              marginBottom: 24,
               height: 2,
               width: 80,
               backgroundColor: RED_ACCENT,
@@ -94,40 +83,39 @@ export default function HomeScreen() {
             }}
           />
 
-          {/* TOP SECTION: primary buttons — large, left-aligned */}
-          <View style={{ gap: 22 }}>
-            {primaryButtons.map(({ key, source }) => (
-              <Pressable
-                key={key}
-                onPress={() => handlePress(key)}
-                android_ripple={{ color: '#00000018' }}
-                style={({ pressed }) => ({
-                  width: primaryW,
-                  height: primaryH,
-                  opacity: pressed ? 0.75 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                })}
-              >
-                <Image
-                  source={source}
-                  resizeMode="contain"
-                  style={{ width: primaryW, height: primaryH }}
-                />
-              </Pressable>
-            ))}
-          </View>
-
-          {/* BOTTOM SECTION: small buttons (left, vertical) + secondary buttons (right) */}
+          {/* Main layout: 4 primary buttons (left) + 3 small icons (right) */}
           <View
             style={{
               flex: 1,
               flexDirection: 'row',
               alignItems: 'center',
-              marginTop: 28,
             }}
           >
-            {/* Small icons column — vertically stacked */}
-            <View style={{ gap: SMALL_GAP, width: SMALL_SIZE }}>
+            {/* Left column: 4 primary buttons stacked */}
+            <View style={{ gap: 16, flex: 1 }}>
+              {primaryButtons.map(({ key, source }) => (
+                <Pressable
+                  key={key}
+                  onPress={() => handlePress(key)}
+                  android_ripple={{ color: '#00000018' }}
+                  style={({ pressed }) => ({
+                    width: primaryW,
+                    height: primaryH,
+                    opacity: pressed ? 0.75 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  })}
+                >
+                  <Image
+                    source={source}
+                    resizeMode="contain"
+                    style={{ width: primaryW, height: primaryH }}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Right column: 3 small icons vertically stacked */}
+            <View style={{ gap: 14, width: SMALL_SIZE, alignItems: 'center', alignSelf: 'flex-end', paddingBottom: 8 }}>
               {smallButtons.map(({ key, source }) => (
                 <Pressable
                   key={key}
@@ -143,36 +131,6 @@ export default function HomeScreen() {
                     source={source}
                     resizeMode="contain"
                     style={{ width: SMALL_SIZE, height: SMALL_SIZE }}
-                  />
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Secondary buttons — vertically stacked, right-aligned */}
-            <View
-              style={{
-                flex: 1,
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-                gap: 20,
-              }}
-            >
-              {secondaryButtons.map(({ key, source }) => (
-                <Pressable
-                  key={key}
-                  onPress={() => handlePress(key)}
-                  android_ripple={{ color: '#00000018' }}
-                  style={({ pressed }) => ({
-                    width: secondaryW,
-                    height: secondaryH,
-                    opacity: pressed ? 0.75 : 1,
-                    transform: [{ scale: pressed ? 0.97 : 1 }],
-                  })}
-                >
-                  <Image
-                    source={source}
-                    resizeMode="contain"
-                    style={{ width: secondaryW, height: secondaryH }}
                   />
                 </Pressable>
               ))}

@@ -4,7 +4,6 @@ import type { SudokuGameStore } from './store';
 
 const EMPTY_NOTES: ReadonlySet<number> = new Set();
 
-// Fine-grained per-cell selector: only re-renders the Cell that actually changed.
 export function useCellState(store: SudokuGameStore, idx: number) {
   return useStore(
     store,
@@ -25,7 +24,9 @@ export function useSudokuGameState(store: SudokuGameStore) {
       selectedIndex: s.selectedIndex,
       isNotesMode: s.isNotesMode,
       hintsRemaining: s.hintsRemaining,
+      silverRemaining: s.silverRemaining,
       goldenRemaining: s.goldenRemaining,
+      isGoldenMode: s.isGoldenMode,
       isComplete: s.isComplete,
     })),
   );
@@ -39,8 +40,11 @@ export function useSudokuGameActions(store: SudokuGameStore) {
     toggleNotesMode: s.toggleNotesMode,
     erase: s.erase,
     useHint: s.useHint,
+    useSilverCell: s.useSilverCell,
     useGoldenCell: s.useGoldenCell,
+    cancelGoldenMode: s.cancelGoldenMode,
     grantHints: s.grantHints,
+    grantSilverCells: s.grantSilverCells,
     grantGoldenCells: s.grantGoldenCells,
   })));
 }

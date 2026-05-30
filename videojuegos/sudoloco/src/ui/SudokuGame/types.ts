@@ -12,6 +12,7 @@ export interface SudokuGameOptions {
   puzzle: Puzzle;
   rng: Rng;
   initialHints?: number;
+  initialSilverCells?: number;
   initialGoldenCells?: number;
   callbacks?: SudokuGameCallbacks;
 }

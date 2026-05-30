@@ -7,7 +7,7 @@ import { LivesDisplay, TimerDisplay, ScoreDisplay } from './ui/HUD';
 import { SudokuGame } from '@ui/SudokuGame';
 import { createSudokuGameStore } from '@ui/SudokuGame';
 import { numbersPack } from '@core/symbols';
-import { rollReward } from '@core/sudoku';
+import { rollReward, microgameTimeBonus } from '@core/sudoku';
 import type { Reward } from '@core/sudoku';
 import { colors } from '@theme/colors';
 import { useAuthStore } from '@features/auth';
@@ -20,29 +20,13 @@ export function SudolocoScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const {
-    phase,
-    level,
-    lives,
-    timeRemaining,
-    score,
-    hints,
-    goldenCells,
-    coinsEarned,
-    puzzle,
-    rng,
-    startRun,
-    onCellCorrect,
-    onCellIncorrect,
-    onBoxComplete,
-    onPuzzleComplete,
-    tick,
-    nextLevel,
-    exitMicrogame,
-    grantReward,
-    resetRun,
+    phase, level, lives, crystalHearts, timeRemaining, score,
+    hints, silverCells, goldenCells, coinsEarned, puzzle, rng,
+    startRun, onCellCorrect, onCellIncorrect, onBoxComplete,
+    onPuzzleComplete, tick, nextLevel, exitMicrogame, grantReward,
+    resetRun, pauseRun, resumeRun,
   } = useSudolocoStore();
 
-  // Write highscore + coins to Firestore when the run ends.
   const savedRef = useRef(false);
   useEffect(() => {
     if (phase !== 'gameover' || savedRef.current || !user) return;
@@ -55,7 +39,6 @@ export function SudolocoScreen() {
     }).catch(console.warn);
   }, [phase]);
 
-  // Game store instance — recreated each time the puzzle changes.
   const gameStoreRef = useRef<ReturnType<typeof createSudokuGameStore> | null>(null);
 
   useEffect(() => {
@@ -64,6 +47,7 @@ export function SudolocoScreen() {
         puzzle,
         rng,
         initialHints: hints,
+        initialSilverCells: silverCells,
         initialGoldenCells: goldenCells,
         callbacks: {
           onCellCorrect: (idx) => onCellCorrect(idx),
@@ -73,27 +57,30 @@ export function SudolocoScreen() {
         },
       });
     }
-    // puzzle identity changes when a new level starts
   }, [puzzle]);
 
-  // Sync hints/goldenCells granted from microgame rewards into the game store.
+  // Sync power-ups into the game store when granted mid-run.
   useEffect(() => {
-    if (!gameStoreRef.current) return;
     const store = gameStoreRef.current;
-    const current = store.getState();
-    const diff = hints - current.hintsRemaining;
+    if (!store) return;
+    const diff = hints - store.getState().hintsRemaining;
     if (diff > 0) store.getState().grantHints(diff);
   }, [hints]);
 
   useEffect(() => {
-    if (!gameStoreRef.current) return;
     const store = gameStoreRef.current;
-    const current = store.getState();
-    const diff = goldenCells - current.goldenRemaining;
+    if (!store) return;
+    const diff = silverCells - store.getState().silverRemaining;
+    if (diff > 0) store.getState().grantSilverCells(diff);
+  }, [silverCells]);
+
+  useEffect(() => {
+    const store = gameStoreRef.current;
+    if (!store) return;
+    const diff = goldenCells - store.getState().goldenRemaining;
     if (diff > 0) store.getState().grantGoldenCells(diff);
   }, [goldenCells]);
 
-  // Timer tick.
   useEffect(() => {
     if (phase !== 'playing') return;
     const id = setInterval(() => tick(), 1000);
@@ -101,23 +88,20 @@ export function SudolocoScreen() {
   }, [phase, tick]);
 
   const [microgameReward, setMicrogameReward] = useState<Reward | null>(null);
-
   useEffect(() => {
     if (phase !== 'microgame' || !rng) return;
     setMicrogameReward(rollReward(level, rng));
   }, [phase]);
 
-  // Reset save flag when a new run starts.
   useEffect(() => {
-    if (phase === 'playing' && level === 1) {
-      savedRef.current = false;
-    }
+    if (phase === 'playing' && level === 1) savedRef.current = false;
   }, [phase, level]);
 
-  // --- Idle / not started ---
+  void router;
+
   if (phase === 'idle') {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
           <Text style={styles.title}>SUDOLOCO</Text>
           <Pressable style={styles.startBtn} onPress={() => startRun()}>
@@ -128,10 +112,9 @@ export function SudolocoScreen() {
     );
   }
 
-  // --- Game Over ---
   if (phase === 'gameover') {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
           <Text style={styles.gameoverTitle}>Game Over</Text>
           <Text style={styles.finalScore}>Score: {score.toLocaleString()}</Text>
@@ -145,12 +128,12 @@ export function SudolocoScreen() {
     );
   }
 
-  // --- Between levels ---
   if (phase === 'between_levels') {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
           <Text style={styles.title}>¡Nivel {level} completado!</Text>
+          <Text style={styles.bonusText}>+60 segundos</Text>
           <Pressable style={styles.startBtn} onPress={() => nextLevel()}>
             <Text style={styles.startBtnText}>Siguiente nivel</Text>
           </Pressable>
@@ -159,36 +142,49 @@ export function SudolocoScreen() {
     );
   }
 
-  // --- No game store yet (should not happen after startRun) ---
   if (!gameStoreRef.current) return null;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* HUD */}
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.hud}>
-        <LivesDisplay lives={lives} />
+        <LivesDisplay lives={lives} crystalHearts={crystalHearts} />
         <TimerDisplay timeRemaining={timeRemaining} />
-        <ScoreDisplay score={score} level={level} />
+        <View style={styles.hudRight}>
+          <Pressable onPress={pauseRun} style={styles.pauseBtn}>
+            <Text style={styles.pauseIcon}>⏸️</Text>
+          </Pressable>
+          <ScoreDisplay score={score} level={level} />
+        </View>
       </View>
 
-      {/* Board + NumberPad */}
       <SudokuGame
         store={gameStoreRef.current}
         pack={numbersPack}
         showHintButton={hints > 0}
+        showSilverButton={silverCells > 0}
         showGoldenButton={goldenCells > 0}
       />
 
-      {/* Microgame overlay placeholder */}
+      {phase === 'paused' && (
+        <View style={styles.overlay} pointerEvents="auto">
+          <Text style={styles.overlayTitle}>⏸️ Pausa</Text>
+          <Pressable style={styles.startBtn} onPress={resumeRun}>
+            <Text style={styles.startBtnText}>Continuar</Text>
+          </Pressable>
+        </View>
+      )}
+
       {phase === 'microgame' && (
-        <View style={styles.microgameOverlay} pointerEvents="auto">
-          <Text style={styles.microgameText}>¡Microjuego!</Text>
-          {microgameReward && microgameReward.kind !== 'none' && (
+        <View style={styles.overlay} pointerEvents="auto">
+          <Text style={styles.overlayTitle}>¡Microjuego!</Text>
+          <Text style={styles.bonusText}>+{microgameTimeBonus(level)}s garantizados</Text>
+          {microgameReward && (
             <Text style={styles.rewardText}>{rewardLabel(microgameReward)}</Text>
           )}
           <Pressable
             style={styles.startBtn}
             onPress={() => {
+              grantReward({ kind: 'time', amount: microgameTimeBonus(level) });
               if (microgameReward) grantReward(microgameReward);
               exitMicrogame();
             }}
@@ -202,10 +198,7 @@ export function SudolocoScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg.base,
-  },
+  safe: { flex: 1, backgroundColor: colors.bg.base },
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,6 +206,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
+  hudRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pauseBtn: { padding: 4 },
+  pauseIcon: { fontSize: 20 },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -220,63 +216,38 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.base,
     gap: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: colors.text.primary,
-    letterSpacing: 2,
-  },
-  gameoverTitle: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: colors.state.danger,
-  },
-  finalScore: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  coins: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.brand.accent,
-  },
+  title: { fontSize: 32, fontWeight: '900', color: colors.text.primary, letterSpacing: 2 },
+  gameoverTitle: { fontSize: 40, fontWeight: '900', color: colors.state.danger },
+  finalScore: { fontSize: 22, fontWeight: '700', color: colors.text.primary },
+  coins: { fontSize: 18, fontWeight: '600', color: colors.brand.accent },
+  bonusText: { fontSize: 18, fontWeight: '600', color: colors.state.success },
   startBtn: {
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: colors.brand.primary,
   },
-  startBtnText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  microgameOverlay: {
+  startBtnText: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
+  overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
   },
-  microgameText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.text.primary,
-  },
-  rewardText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.brand.accent,
-  },
+  overlayTitle: { fontSize: 28, fontWeight: '900', color: colors.text.primary },
+  rewardText: { fontSize: 22, fontWeight: '700', color: colors.brand.accent },
 });
 
 function rewardLabel(reward: Reward): string {
   switch (reward.kind) {
     case 'score': return `¡+${reward.amount} puntos!`;
-    case 'hint': return '¡Una pista!';
-    case 'golden_cell': return '¡Casilla dorada!';
-    case 'life': return '¡Una vida extra!';
+    case 'time': return `¡+${reward.amount}s extra!`;
+    case 'hint': return '🔍 ¡Una pista!';
+    case 'silver_cell': return '🥈 ¡Casilla plateada!';
+    case 'golden_cell': return '🥇 ¡Casilla dorada!';
+    case 'life': return '♥ ¡Vida extra!';
+    case 'crystal_heart': return '◇ ¡Corazón de cristal!';
     case 'none': return '';
   }
 }

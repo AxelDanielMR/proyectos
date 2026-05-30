@@ -1,8 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 import type { Board as SudokuBoard, Puzzle } from '@core/sudoku';
 import { getPeers } from '@core/sudoku';
 import type { SymbolPack } from '@core/symbols';
-import { colors } from '@theme/colors';
 import { Cell } from '../Cell';
 
 export interface BoardProps {
@@ -15,19 +14,8 @@ export interface BoardProps {
   notes?: ReadonlyMap<number, ReadonlySet<number>>;
 }
 
-const THIN = StyleSheet.hairlineWidth;
-const THICK = 2;
-const NONE = 0;
-
 const EMPTY_SET: ReadonlySet<number> = new Set();
-const EMPTY_NOTES: ReadonlySet<number> = new Set();
-
-function getBorderWidths(row: number, col: number): { right: number; bottom: number } {
-  return {
-    right: col === 8 ? NONE : col % 3 === 2 ? THICK : THIN,
-    bottom: row === 8 ? NONE : row % 3 === 2 ? THICK : THIN,
-  };
-}
+const NO_BORDER = { right: 0, bottom: 0 } as const;
 
 export function Board({
   puzzle,
@@ -41,29 +29,36 @@ export function Board({
   const peers = selectedIndex != null ? getPeers(selectedIndex) : null;
 
   return (
-    <View style={styles.board}>
-      {Array.from({ length: 9 }, (_, row) => (
-        <View key={row} style={styles.row}>
-          {Array.from({ length: 9 }, (_, col) => {
-            const idx = row * 9 + col;
-            return (
-              <Cell
-                key={idx}
-                value={(board[idx] ?? 0) as SudokuBoard[number]}
-                isFixed={!!puzzle.initial[idx]}
-                isSelected={selectedIndex === idx}
-                isPeer={peers != null && peers.has(idx)}
-                isError={errorIndices.has(idx)}
-                notes={notes?.get(idx) ?? EMPTY_NOTES}
-                pack={pack}
-                onPress={() => onCellPress(idx)}
-                borderWidths={getBorderWidths(row, col)}
-              />
-            );
-          })}
-        </View>
-      ))}
-    </View>
+    <ImageBackground
+      source={require('../../../assets/grids/grid_flowers_roses.png')}
+      resizeMode="stretch"
+      style={styles.board}
+    >
+      {/* Inner padding lets the image frame show around the cells */}
+      <View style={styles.inner}>
+        {Array.from({ length: 9 }, (_, row) => (
+          <View key={row} style={styles.row}>
+            {Array.from({ length: 9 }, (_, col) => {
+              const idx = row * 9 + col;
+              return (
+                <Cell
+                  key={idx}
+                  value={(board[idx] ?? 0) as SudokuBoard[number]}
+                  isFixed={!!puzzle.initial[idx]}
+                  isSelected={selectedIndex === idx}
+                  isPeer={peers != null && peers.has(idx)}
+                  isError={errorIndices.has(idx)}
+                  notes={notes?.get(idx) ?? new Set()}
+                  pack={pack}
+                  onPress={() => onCellPress(idx)}
+                  borderWidths={NO_BORDER}
+                />
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    </ImageBackground>
   );
 }
 
@@ -71,8 +66,10 @@ const styles = StyleSheet.create({
   board: {
     width: '100%',
     aspectRatio: 1,
-    borderWidth: THICK,
-    borderColor: colors.board.thickLine,
+    backgroundColor: '#ffffff',
+  },
+  inner: {
+    flex: 1,
   },
   row: {
     flex: 1,

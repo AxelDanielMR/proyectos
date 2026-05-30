@@ -2,35 +2,29 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '@theme/colors';
 
-// --- LivesDisplay ---
-
 interface LivesDisplayProps {
   lives: number;
+  crystalHearts: number;
 }
 
-export const LivesDisplay = React.memo(function LivesDisplay({
-  lives,
-}: LivesDisplayProps) {
+export const LivesDisplay = React.memo(function LivesDisplay({ lives, crystalHearts }: LivesDisplayProps) {
   return (
     <View style={styles.livesRow}>
       {Array.from({ length: 3 }, (_, i) => (
-        <Text key={i} style={[styles.heart, i >= lives && styles.heartLost]}>
-          ♥
-        </Text>
+        <Text key={i} style={[styles.heart, i >= lives && styles.heartLost]}>♥</Text>
+      ))}
+      {Array.from({ length: crystalHearts }, (_, i) => (
+        <Text key={`c-${i}`} style={styles.crystalHeart}>◇</Text>
       ))}
     </View>
   );
 });
 
-// --- TimerDisplay ---
-
 interface TimerDisplayProps {
   timeRemaining: number;
 }
 
-export const TimerDisplay = React.memo(function TimerDisplay({
-  timeRemaining,
-}: TimerDisplayProps) {
+export const TimerDisplay = React.memo(function TimerDisplay({ timeRemaining }: TimerDisplayProps) {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   const label = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
@@ -43,17 +37,12 @@ export const TimerDisplay = React.memo(function TimerDisplay({
   );
 });
 
-// --- ScoreDisplay ---
-
 interface ScoreDisplayProps {
   score: number;
   level: number;
 }
 
-export const ScoreDisplay = React.memo(function ScoreDisplay({
-  score,
-  level,
-}: ScoreDisplayProps) {
+export const ScoreDisplay = React.memo(function ScoreDisplay({ score, level }: ScoreDisplayProps) {
   return (
     <View style={styles.scoreBox}>
       <Text style={styles.levelLabel}>Nv {level}</Text>
@@ -62,12 +51,11 @@ export const ScoreDisplay = React.memo(function ScoreDisplay({
   );
 });
 
-// --- Styles ---
-
 const styles = StyleSheet.create({
   livesRow: {
     flexDirection: 'row',
     gap: 4,
+    alignItems: 'center',
   },
   heart: {
     fontSize: 22,
@@ -75,6 +63,10 @@ const styles = StyleSheet.create({
   },
   heartLost: {
     opacity: 0.25,
+  },
+  crystalHeart: {
+    fontSize: 20,
+    color: '#93c5fd',
   },
   timerBox: {
     paddingHorizontal: 10,
@@ -89,7 +81,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   timerLow: {
-    color: colors.brand.primary,
+    color: colors.state.danger,
   },
   scoreBox: {
     alignItems: 'flex-end',

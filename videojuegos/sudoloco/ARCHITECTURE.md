@@ -102,9 +102,24 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 
 ```
 /users/{uid}
-  displayName, email, symbolPackId, difficultyPreferred,
-  unlockedMicrogames[], cuentosCompleted[], historiaProgress,
-  stats: { wins, losses, totalGames, highscore }, createdAt, updatedAt
+  displayName:    string | null      ← null mientras sea anónimo
+  email:          string | null      ← null mientras sea anónimo
+  isAnonymous:    boolean
+  createdAt:      Timestamp
+
+  stats:
+    highscore:    number
+    bestLevel:    number             ← nivel máximo alcanzado en una run
+
+  wallet:
+    coins:        number
+
+  unlocked:
+    symbolPackIds:  string[]         ← vacío por defecto (numbers y colors son gratis)
+    microgameIds:   string[]         ← se añade al descubrir cada microjuego por primera vez
+
+  active:
+    symbolPackId:  string            ← 'numbers' por defecto
 
 /matches/{matchId}                # Versus Islas
   mode, hostId, guestId, code, difficulty, seed,
@@ -115,6 +130,14 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 /storyChapters/{chapterId}
   order, title, images: [{ order, url, text }]
 ```
+
+**Lo que NO va a Firestore:**
+- Run activa (timer, vidas, board) → MMKV exclusivamente
+- `hasRemovedAds` → RevenueCat lo gestiona
+- Progreso de Historia/Cuento → se añadirá como `completedChapterIds: string[]` cuando existan esas features
+- Stats detalladas (errores totales, etc.) → decidir al implementar analytics
+
+**Writes por sesión típica:** 1 (al terminar run si highscore o coins cambiaron) + ocasionalmente al desbloquear microjuego/pack. Gratis en Spark hasta ~4,000 DAU.
 
 ### Realtime DB (`realtimeDb`) — solo Versus Mar
 
@@ -130,7 +153,101 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 
 ---
 
-## 5. Multijugador en plan gratuito (sin Cloud Functions)
+## 5. Auth anónimo y registro opcional
+
+### Filosofía
+El usuario entra directo al juego sin ninguna pantalla de login. Firebase asigna un UID anónimo silenciosamente. El registro es opcional y se ofrece en momentos contextuales. Si el usuario nunca se registra y desinstala la app, sus datos se pierden — esto se comunica en la UI como incentivo a registrarse.
+
+### Flujo
+
+```
+Primera apertura
+  → signInAnonymously() silencioso
+  → Crea /users/{uid} en Firestore con datos vacíos (isAnonymous: true)
+  → Entra directo al home
+
+Nudges contextuales (no bloqueantes):
+  → Pantalla game over: "¿Quieres conservar tu progreso? Regístrate"
+  → Tab Perfil: estado "Jugando como invitado" + botón "Crear cuenta"
+
+Al registrarse (voluntario):
+  → linkWithCredential(EmailAuthProvider.credential(email, password))
+  → El UID anónimo se convierte en permanente — Firestore sin migración
+  → Actualiza displayName, email, isAnonymous: false en el documento
+
+Si reinstala sin haberse registrado:
+  → UID anónimo perdido → datos perdidos (comportamiento esperado y comunicado)
+
+Si reinstala habiendo registrado:
+  → Login con email/password → recupera todos sus datos de Firestore
+```
+
+### Estados de AuthStatus
+
+```ts
+type AuthStatus = 'loading' | 'anonymous' | 'authenticated' | 'unauthenticated';
+// 'unauthenticated' solo durante el signInAnonymously inicial o tras signOut explícito
+```
+
+### Archivos clave
+
+| Archivo | Responsabilidad |
+|---|---|
+| `app/_layout.tsx` (AuthGuard) | Llama a `signInAnonymously` si no hay usuario; no redirige a login |
+| `features/auth/store.ts` | Añade estado `'anonymous'`; acción `linkAccount(email, password)` |
+| `app/(auth)/login.tsx` | Solo accesible desde perfil o nudge, no como gate obligatorio |
+| `app/(auth)/register.tsx` | Usa `linkWithCredential` si hay sesión anónima; crea cuenta nueva si no |
+
+---
+
+## 5b. Anuncios (AdMob) + compra "sin anuncios" (RevenueCat)
+
+### Librerías
+- `react-native-google-mobile-ads` — intersticiales AdMob
+- `react-native-purchases` — RevenueCat IAP (pago único, gestiona recibos y restore purchases)
+- Instalar solo en **Fase 9** — requieren config nativa y cuentas en AdMob/RevenueCat/Google Play Console
+
+### Regla de frecuencia
+
+```ts
+// src/features/ads/adGate.ts — lógica pura, testeable sin RN
+function shouldShowAd(
+  trigger: 'puzzle_complete' | 'game_over',
+  puzzlesSinceLastAd: number,
+): boolean {
+  if (trigger === 'game_over') return true;           // siempre en game over
+  return puzzlesSinceLastAd >= 3;                     // cada 3 puzzles durante la run
+}
+```
+
+Usuarios con entitlement "sin anuncios": `shouldShowAd` nunca se ejecuta.
+
+### Entitlement "sin anuncios"
+RevenueCat gestiona el recibo del pago único y el restore purchases. `useHasRemovedAds()` consulta RevenueCat — funciona tras reinstalar sin tocar Firestore.
+
+### Estructura
+
+```
+src/features/ads/
+  adGate.ts       # shouldShowAd — lógica pura
+  useAds.ts       # hook: preload + show intersticial
+  useIAP.ts       # hook: comprar "sin anuncios" + restaurar compra
+```
+
+El `RunStore` de Sudoloco mantiene `puzzlesSinceLastAd: number`: incrementa en `onPuzzleComplete`, resetea a 0 al mostrar un anuncio.
+
+### Análisis de rentabilidad (referencia LATAM, CPM ~$1)
+
+| DAU | Impresiones/día (cap 3) | Ingreso/mes |
+|---|---|---|
+| 1,000 | ~2,500 | ~$75 |
+| 10,000 | ~25,000 | ~$750 |
+
+Costo Firestore con modelo mínimo: < $1/mes hasta 10,000 DAU.
+
+---
+
+## 6. Multijugador en plan gratuito (sin Cloud Functions)
 
 ### Versus Islas (asíncrono)
 - Ambos clientes comparten el `seed`. Cada uno **genera localmente** el mismo tablero (el generador es determinista).
@@ -262,14 +379,16 @@ Se registran en `src/features/microjuegos/registry.ts`. Agregar un microjuego = 
 
 ### Recompensas tipadas
 
-Al ganar un microjuego, el runner llama a `rollReward(level, rng)` (de `core/sudoku/rewards.ts`) y aplica el resultado al `RunState`:
+Al ganar un microjuego, el runner llama a `rollReward(level, rng)` (de `core/sudoku/rewards.ts`) y aplica el resultado al `RunState`. Las recompensas son exclusivamente de **supervivencia y utilidad** — no de puntuación (el score ya se gana colocando celdas correctamente):
 
 ```ts
 type Reward =
-  | { kind: 'score'; amount: number }
-  | { kind: 'life' }
+  | { kind: 'time'; amount: number }
   | { kind: 'hint' }
+  | { kind: 'silver_cell' }
   | { kind: 'golden_cell' }
+  | { kind: 'life' }
+  | { kind: 'crystal_heart' }
   | { kind: 'none' };
 ```
 
@@ -277,15 +396,17 @@ Perder o agotar el tiempo → `{ kind: 'none' }`.
 
 ### Tabla de probabilidades (interpolada por nivel)
 
-| Recompensa | Nivel 1 | Nivel 10 | Nivel 20+ |
-|---|---|---|---|
-| score bonus | 40 % | 37 % | 33 % |
-| hint (+1) | 25 % | 27 % | 29 % |
-| golden cell | 5 % | 7 % | 10 % |
-| extra life | 5 % | 7 % | 10 % |
-| none | 25 % | 22 % | 18 % |
+| Recompensa | Nivel 1 | Nivel 20+ |
+|---|---|---|
+| time (+segundos) | 26 % | 22 % |
+| hint (+1) | 18 % | 20 % |
+| silver_cell | 12 % | 14 % |
+| golden_cell | 4 % | 8 % |
+| life (+1) | 5 % | 8 % |
+| crystal_heart | 10 % | 8 % |
+| none | 25 % | 20 % |
 
-Las recompensas más fuertes escalan lentamente hacia arriba. La lógica de interpolación vive en `core/sudoku/rewards.ts` (pura, testeable).
+Las recompensas más fuertes (golden_cell, life) escalan hacia arriba con el nivel. La lógica de interpolación vive en `core/sudoku/rewards.ts` (pura, testeable).
 
 ---
 
@@ -393,7 +514,7 @@ Trabajo de presentación del menú principal en `app/(tabs)/home.tsx`. Pausado t
 
 **3a. Núcleo puro extra (`core/sudoku/`)**
 1. `progression.ts` — `levelConfig(level): { difficulty, secsPerCell }` + `INITIAL_TIME_S`. Tests Jest.
-2. `rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada. Tests Jest.
+2. `rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada (sin variante `score`). Tests Jest.
 3. `hints.ts` — `pickHintCell`, `revealCandidate`, `revealGoldenCell`. Tests Jest.
 4. `economy.ts` — `computeRunReward(score, level): { coins }`. Tests Jest.
 
@@ -403,53 +524,72 @@ Trabajo de presentación del menú principal en `app/(tabs)/home.tsx`. Pausado t
 7. `hooks.ts` — selectors finos (`useSelectedCell`, `useCellValue(idx)`, etc.) para evitar re-renders.
 
 **3c. Modo Sudoloco (`src/features/sudoloco/`)**
-8. `store.ts` (Zustand) — `RunState`: level, lives, timeRemaining, score, hints, goldenCells, coins, phase. Timer vía `setInterval` start/stop según `phase`.
+8. `store.ts` (Zustand) — `RunState`: level, lives, timeRemaining, score, hints, goldenCells, coins, phase, puzzlesSinceLastAd. Timer vía `setInterval` start/stop según `phase`.
 9. `screen.tsx` — HUD + `<SudokuGame />` + transiciones de nivel. Suscribe callbacks del motor para sumar tiempo/score/restar vidas/lanzar microjuego.
 10. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (sin estado).
 11. Persistencia de run en MMKV.
-12. Pantalla de game over: calcula coins con `economy.computeRunReward`, escribe highscore + coins en Firestore (Fase 4).
+12. Pantalla de game over: calcula coins con `economy.computeRunReward`, escribe highscore + coins en Firestore.
 
-### Fase 4 — Auth + perfil
+### Fase 4 — Auth anónimo + registro opcional
 
-8. Pantallas de registro/login con Firebase Auth (email + password).
-9. `services/firebase/users.repo.ts` — CRUD de perfil.
-10. Guardar highscore en Firestore (`/users/{uid}/stats.highscore`).
-11. Perfil: pack de símbolos preferido.
+1. `AuthGuard` en `app/_layout.tsx`: reemplazar redirección a login por `signInAnonymously()` silencioso.
+2. `features/auth/store.ts`: añadir estado `'anonymous'` y acción `linkAccount(email, password)` que usa `linkWithCredential`.
+3. `services/firebase/users.repo.ts`: `createUserAnonymous(uid)` crea documento vacío en Firestore.
+4. Pantalla de perfil: mostrar estado "Jugando como invitado" + botón "Crear cuenta".
+5. Nudge en pantalla de game over: banner no bloqueante de registro.
+6. `app/(auth)/register.tsx`: detectar si hay sesión anónima activa y usar `linkWithCredential` en lugar de `createUserWithEmailAndPassword`.
 
-### Fase 5 — Microjuegos
+### Fase 5 — Microjuegos + Biblioteca básica (simultáneas)
 
-12. Implementar 3–5 microjuegos iniciales (tap-fast, memory-flash, simon, etc.).
-13. `runner.tsx` — overlay que aparece al completar caja, lanza microjuego, aplica `Reward` al `RunState` vía `rollReward`.
-14. Persistencia de `unlockedMicrogames` en perfil.
+**Microjuegos**
+1. Implementar 3–5 microjuegos iniciales (tap-fast, memory-flash, simon, etc.).
+2. `runner.tsx` — overlay que aparece al completar caja, lanza microjuego, aplica `Reward` al `RunState` vía `rollReward`.
+3. Persistencia de `unlockedMicrogames` en perfil (Firestore `unlocked.microgameIds`).
 
-### Fase 6 — Cuento
+**Biblioteca básica**
+4. Tab Biblioteca: lista de microjuegos descubiertos (desbloqueados vs bloqueados).
+5. Selector de pack de símbolos activo — lee `unlocked.symbolPackIds` y `active.symbolPackId` de Firestore.
+6. Sección de tienda básica: muestra packs disponibles, permite comprar con coins (escribe en `unlocked.symbolPackIds`).
 
-15. Modelo `StoryChapter` en Firestore + seed con un cuento de prueba.
-16. Pantalla de partida con overlay de imagen tras cada caja.
-17. Vista de carrusel al completar.
+### Fase 6 — Versus Islas + Versus Mar
+
+**Versus Islas**
+1. Sistema de códigos de partida (Firestore docs con TTL).
+2. Sistema de amigos (subcolección `/users/{uid}/friends`).
+3. Throttled progress sync (`progress[uid]` 0..100 en Firestore).
+
+**Versus Mar**
+4. Reglas de seguridad RTDB (validación de movimientos).
+5. Transacciones de movimiento + scoring con `runTransaction()`.
+6. Indicadores de presencia.
 
 ### Fase 7 — Historia
 
-18. Lógica de capítulos, progresión, menú de capítulos.
+1. Lógica de capítulos, progresión lineal, menú de capítulos.
+2. Persistencia de `completedChapterIds` en Firestore.
 
-### Fase 8 — Versus Islas
+### Fase 8 — Cuento
 
-19. Sistema de códigos de partida (Firestore docs con TTL).
-20. Sistema de amigos (subcolección `/users/{uid}/friends`).
-21. Throttled progress sync.
+1. Modelo `StoryChapter` en Firestore + seed con un cuento de prueba.
+2. Pantalla de partida con overlay de imagen tras cada caja completada.
+3. Vista de carrusel al terminar el cuento.
 
-### Fase 9 — Versus Mar
+### Fase 9 — Ads (AdMob) + IAP "sin anuncios" (RevenueCat)
 
-22. Reglas de seguridad RTDB (validación de movimientos).
-23. Transacciones de movimiento + scoring.
-24. Indicadores de presencia.
+1. Instalar `react-native-google-mobile-ads` y `react-native-purchases`.
+2. `features/ads/adGate.ts` — `shouldShowAd(trigger, puzzlesSinceLastAd)`: pura, testeable.
+3. `features/ads/useAds.ts` — preload + show intersticial.
+4. `features/ads/useIAP.ts` — comprar "sin anuncios" + restaurar compra vía RevenueCat.
+5. Integrar en pantalla game over y en `onPuzzleComplete` del RunStore.
+6. Crear producto IAP en Google Play Console + configurar RevenueCat.
 
-### Fase 10 — UI mejorada + pulido
+### Fase 10 — UI pulido + producción
 
-25. Nueva UI del tablero (diseño pendiente).
-26. Animaciones de celebración al completar puzzle/caja, sonidos, haptics.
-27. Onboarding.
-28. Builds EAS para producción (Android primero, iOS después).
+1. Nueva UI del tablero (diseño pendiente).
+2. Animaciones de celebración al completar puzzle/caja, sonidos, haptics.
+3. Onboarding.
+4. Configurar `eas.json` (perfiles `development`, `preview`, `production`).
+5. Builds EAS para producción (Android primero, iOS después).
 
 ---
 
@@ -671,3 +811,5 @@ Esto convierte el lookup de peers en O(1) en lugar de recalcularlo en cada rende
 - **Onboarding** y selección inicial de pack de símbolos.
 - **Analytics**: Firebase Analytics está incluido en Spark, falta decidir qué medir.
 - **EAS Build**: configurar `eas.json` y perfiles `development` / `preview` / `production` antes de Fase 10.
+- **Precio del IAP "sin anuncios"**: definir al implementar Fase 9 (referencia: $1.99–$2.99 USD).
+- **crystal_heart**: mecánica pendiente de definir (¿escudo ante un error? ¿vida extra especial?). Existe en `rewards.ts` pero su efecto en `RunState` no está especificado.

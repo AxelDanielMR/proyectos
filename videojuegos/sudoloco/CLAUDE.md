@@ -164,6 +164,7 @@ npm test               # Jest (solo core, sin RN)
 - **Antes de implementar algo nuevo**, verifica si la lógica pertenece a `core/` (sin deps de RN/Firebase) o a una feature. Si es lógica de sudoku, va a `core/` con tests Jest.
 - **Tests primero para `core/`.** Cualquier código en `src/core/sudoku/` debe tener tests en `__tests__/`.
 - **No crear archivos de documentación** (planes, resúmenes, decisiones) salvo que el usuario lo pida explícitamente. `ARCHITECTURE.md` es el documento vivo del proyecto.
+- **No hacer commits** salvo que el usuario lo pida explícitamente.
 - **Plan Spark = sin Cloud Functions.** No proponer arquitecturas que requieran Blaze sin avisar.
 - **Determinismo del generador es contractual.** No introducir `Math.random()` ni `Date.now()` en `core/sudoku/`. Todo entra por el PRNG con seed.
 - El usuario usa **Windows + PowerShell**, no Bash. Para rutas y comandos del shell, usa sintaxis PowerShell.
@@ -178,4 +179,4 @@ npm test               # Jest (solo core, sin RN)
 
 ## Decisiones pendientes (ver §17 de ARCHITECTURE.md)
 
-Reglas de Firestore antes de Fase 4 · imágenes de cuentos (Storage vs bundled) · onboarding · analytics · EAS Build.
+Reglas de Firestore antes de Fase 4 · imágenes de cuentos (Storage vs bundled) · onboarding · analytics · EAS Build · precio IAP "sin anuncios" · mecánica de crystal_heart.

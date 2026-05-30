@@ -152,7 +152,6 @@ export function SudokuBackground({
 
   return (
     <View style={{ flex: 1, backgroundColor: CREAM, overflow: 'hidden' }}>
-      {/* Grid: vertical lines */}
       {Array.from({ length: cols }).map((_, i) => (
         <View
           key={`v-${i}`}
@@ -167,7 +166,6 @@ export function SudokuBackground({
           }}
         />
       ))}
-      {/* Grid: horizontal lines */}
       {Array.from({ length: rows }).map((_, i) => (
         <View
           key={`h-${i}`}
