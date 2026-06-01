@@ -7,7 +7,7 @@ import { LivesDisplay, TimerDisplay, ScoreDisplay } from './ui/HUD';
 import { SudokuGame } from '@ui/SudokuGame';
 import { createSudokuGameStore } from '@ui/SudokuGame';
 import { numbersPack } from '@core/symbols';
-import { rollReward, microgameTimeBonus } from '@core/sudoku';
+import { rollReward } from '@core/sudoku';
 import type { Reward } from '@core/sudoku';
 import { colors } from '@theme/colors';
 import { useAuthStore } from '@features/auth';
@@ -177,14 +177,14 @@ export function SudolocoScreen() {
       {phase === 'microgame' && (
         <View style={styles.overlay} pointerEvents="auto">
           <Text style={styles.overlayTitle}>¡Microjuego!</Text>
-          <Text style={styles.bonusText}>+{microgameTimeBonus(level)}s garantizados</Text>
+          <Text style={styles.bonusText}>+{15}s garantizados</Text>
           {microgameReward && (
             <Text style={styles.rewardText}>{rewardLabel(microgameReward)}</Text>
           )}
           <Pressable
             style={styles.startBtn}
             onPress={() => {
-              grantReward({ kind: 'time', amount: microgameTimeBonus(level) });
+              grantReward({ kind: 'time', amount: 15 });
               if (microgameReward) grantReward(microgameReward);
               exitMicrogame();
             }}
@@ -241,7 +241,6 @@ const styles = StyleSheet.create({
 
 function rewardLabel(reward: Reward): string {
   switch (reward.kind) {
-    case 'score': return `¡+${reward.amount} puntos!`;
     case 'time': return `¡+${reward.amount}s extra!`;
     case 'hint': return '🔍 ¡Una pista!';
     case 'silver_cell': return '🥈 ¡Casilla plateada!';

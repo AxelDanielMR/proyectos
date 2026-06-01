@@ -17,7 +17,7 @@ export { generate } from './generator';
 export { computeProgress, detectBoxCompletion } from './progress';
 export { levelConfig, INITIAL_TIME_S } from './progression';
 export type { LevelConfig } from './progression';
-export { rollReward, microgameTimeBonus } from './rewards';
+export { rollReward } from './rewards';
 export type { Reward } from './rewards';
 export { revealCandidate, pickHintCell, revealGoldenCell } from './hints';
 export { computeRunReward } from './economy';

@@ -121,7 +121,7 @@ src/theme/colors.ts · src/i18n/ · src/lib/env.ts
 - **Fase 1 ✅** Núcleo Sudoku completo, 61 tests Jest pasando (prng, validator, solver, generator, difficulty, progress).
 - **Fase 2 ✅** UI base del tablero (`Board`, `Cell`, `NumberPad`, `ProgressBar`).
 - **UI menú principal ⏸️** En pausa con avances. `home.tsx` con título, 4 botones pixel-art y `SudokuBackground` (cascada de números reactiva al acelerómetro). Pendiente: conectar navegación de botones, tipografía pixel, decidir reutilización del fondo, pausar acelerómetro al perder foco.
-- **Fase 3 — siguiente.** Modo Sudoloco (roguelike). Por hacer: `core/sudoku/progression.ts`, `core/sudoku/rewards.ts`, `features/sudoloco/store.ts` (Zustand con `RunState` + `BoardState` separados desde el inicio), `features/sudoloco/screen.tsx`, HUD, persistencia MMKV, pantalla game over.
+- **Fase 3 — siguiente.** Modo Sudoloco (roguelike). **📋 [Plan detallado](docs/superpowers/plans/2026-05-31-fase-3-sudoloco-roguelike.md)** — 16 tareas TDD (core puro, motor compartido SudokuGame, Sudoloco screen + HUD).
 
 Lista completa de fases en [ARCHITECTURE.md §12-13](ARCHITECTURE.md).
 

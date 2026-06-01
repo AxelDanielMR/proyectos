@@ -134,9 +134,6 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
 
   grantReward(reward) {
     switch (reward.kind) {
-      case 'score':
-        set((s) => ({ score: s.score + reward.amount }));
-        break;
       case 'time':
         set((s) => ({ timeRemaining: s.timeRemaining + reward.amount }));
         break;
