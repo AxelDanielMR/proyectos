@@ -1,40 +1,44 @@
 import { levelConfig, INITIAL_TIME_S } from '../progression';
 
-describe('INITIAL_TIME_S', () => {
-  it('is 180 seconds', () => {
-    expect(INITIAL_TIME_S).toBe(180);
-  });
-});
-
 describe('levelConfig', () => {
-  it('returns beginner for levels 1–3', () => {
-    expect(levelConfig(1)).toEqual({ difficulty: 'beginner', secsPerCell: 4 });
-    expect(levelConfig(2)).toEqual({ difficulty: 'beginner', secsPerCell: 4 });
-    expect(levelConfig(3)).toEqual({ difficulty: 'beginner', secsPerCell: 4 });
-  });
-
-  it('returns intermediate for levels 4–7', () => {
-    expect(levelConfig(4)).toEqual({ difficulty: 'intermediate', secsPerCell: 3 });
-    expect(levelConfig(7)).toEqual({ difficulty: 'intermediate', secsPerCell: 3 });
-  });
-
-  it('returns hard for levels 8–12', () => {
-    expect(levelConfig(8)).toEqual({ difficulty: 'hard', secsPerCell: 2 });
-    expect(levelConfig(12)).toEqual({ difficulty: 'hard', secsPerCell: 2 });
-  });
-
-  it('returns expert for level 13 and beyond', () => {
-    expect(levelConfig(13)).toEqual({ difficulty: 'expert', secsPerCell: 2 });
-    expect(levelConfig(20)).toEqual({ difficulty: 'expert', secsPerCell: 2 });
-    expect(levelConfig(100)).toEqual({ difficulty: 'expert', secsPerCell: 2 });
-  });
-
-  it('covers every boundary correctly', () => {
+  it('nivel 1-3 son beginner', () => {
+    expect(levelConfig(1).difficulty).toBe('beginner');
+    expect(levelConfig(2).difficulty).toBe('beginner');
     expect(levelConfig(3).difficulty).toBe('beginner');
+  });
+
+  it('nivel 4-7 son intermediate', () => {
     expect(levelConfig(4).difficulty).toBe('intermediate');
     expect(levelConfig(7).difficulty).toBe('intermediate');
+  });
+
+  it('nivel 8-12 son hard', () => {
     expect(levelConfig(8).difficulty).toBe('hard');
     expect(levelConfig(12).difficulty).toBe('hard');
+  });
+
+  it('nivel 13+ son expert', () => {
     expect(levelConfig(13).difficulty).toBe('expert');
+    expect(levelConfig(50).difficulty).toBe('expert');
+  });
+
+  it('beginner suma 4s por celda correcta', () => {
+    expect(levelConfig(1).secsPerCell).toBe(4);
+  });
+
+  it('intermediate suma 3s por celda correcta', () => {
+    expect(levelConfig(4).secsPerCell).toBe(3);
+  });
+
+  it('hard suma 2s por celda correcta', () => {
+    expect(levelConfig(8).secsPerCell).toBe(2);
+  });
+
+  it('expert suma 2s por celda correcta', () => {
+    expect(levelConfig(13).secsPerCell).toBe(2);
+  });
+
+  it('INITIAL_TIME_S = 180', () => {
+    expect(INITIAL_TIME_S).toBe(180);
   });
 });

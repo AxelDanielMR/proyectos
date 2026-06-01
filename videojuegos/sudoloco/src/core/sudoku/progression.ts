@@ -3,13 +3,21 @@ import type { Difficulty } from './types';
 export const INITIAL_TIME_S = 180;
 
 export interface LevelConfig {
-  readonly difficulty: Difficulty;
-  readonly secsPerCell: number;
+  difficulty: Difficulty;
+  secsPerCell: number;
 }
 
 export function levelConfig(level: number): LevelConfig {
-  if (level <= 3) return { difficulty: 'beginner', secsPerCell: 4 };
-  if (level <= 7) return { difficulty: 'intermediate', secsPerCell: 3 };
-  if (level <= 12) return { difficulty: 'hard', secsPerCell: 2 };
-  return { difficulty: 'expert', secsPerCell: 2 };
+  const difficulty: Difficulty =
+    level <= 3 ? 'beginner'
+    : level <= 7 ? 'intermediate'
+    : level <= 12 ? 'hard'
+    : 'expert';
+
+  const secsPerCell =
+    difficulty === 'beginner' ? 4
+    : difficulty === 'intermediate' ? 3
+    : 2; // hard o expert
+
+  return { difficulty, secsPerCell };
 }
