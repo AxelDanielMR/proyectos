@@ -1,7 +1,7 @@
 import type { Rng } from './prng';
 
 export type Reward =
-  | { kind: 'time'; amount: number }
+  | { kind: 'time_boost' }
   | { kind: 'hint' }
   | { kind: 'silver_cell' }
   | { kind: 'golden_cell' }
@@ -10,7 +10,7 @@ export type Reward =
   | { kind: 'none' };
 
 interface RewardWeights {
-  time: number;
+  time_boost: number;
   hint: number;
   silver_cell: number;
   golden_cell: number;
@@ -20,29 +20,29 @@ interface RewardWeights {
 }
 
 // Tabla de probabilidades (en %)
+// time_boost se consume automáticamente, ganando tiempo según dificultad del puzzle
 const WEIGHTS_BY_LEVEL = {
   early: {
-    time: 26,
-    hint: 18,
+    time_boost: 8,
+    hint: 24,
     silver_cell: 12,
-    golden_cell: 4,
-    life: 5,
+    golden_cell: 6,
+    life: 13,
     crystal_heart: 10,
-    none: 25,
+    none: 27,
   } as RewardWeights,
   late: {
-    time: 22,
+    time_boost: 10,
     hint: 20,
     silver_cell: 14,
-    golden_cell: 8,
-    life: 8,
+    golden_cell: 16,
+    life: 14,
     crystal_heart: 8,
-    none: 20,
+    none: 18,
   } as RewardWeights,
 };
 
 function interpolateWeights(level: number): RewardWeights {
-  // Nivel 1-10: early, Nivel 20+: late, interpolar en el medio
   if (level <= 10) return WEIGHTS_BY_LEVEL.early;
   if (level >= 20) return WEIGHTS_BY_LEVEL.late;
 
@@ -51,7 +51,7 @@ function interpolateWeights(level: number): RewardWeights {
   const late = WEIGHTS_BY_LEVEL.late;
 
   return {
-    time: early.time + (late.time - early.time) * t,
+    time_boost: early.time_boost + (late.time_boost - early.time_boost) * t,
     hint: early.hint + (late.hint - early.hint) * t,
     silver_cell: early.silver_cell + (late.silver_cell - early.silver_cell) * t,
     golden_cell: early.golden_cell + (late.golden_cell - early.golden_cell) * t,
@@ -63,14 +63,12 @@ function interpolateWeights(level: number): RewardWeights {
 
 export function rollReward(level: number, rng: Rng): Reward {
   const weights = interpolateWeights(level);
-  const roll = rng() * 100; // 0..100
+  const roll = rng() * 100;
 
   let cumulative = 0;
 
-  if ((cumulative += weights.time) >= roll) {
-    // time amount: 10-20 segundos escalado por nivel (mínimo 10)
-    const amount = 10 + Math.min(20, Math.floor(level / 2));
-    return { kind: 'time', amount };
+  if ((cumulative += weights.time_boost) >= roll) {
+    return { kind: 'time_boost' };
   }
 
   if ((cumulative += weights.hint) >= roll) {

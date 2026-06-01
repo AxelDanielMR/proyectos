@@ -12,16 +12,15 @@ describe('rollReward', () => {
   it('retorna un Reward válido', () => {
     const reward = rollReward(1, rng);
     expect(reward).toHaveProperty('kind');
-    const kinds = ['time', 'hint', 'silver_cell', 'golden_cell', 'life', 'crystal_heart', 'none'];
+    const kinds = ['time_boost', 'hint', 'silver_cell', 'golden_cell', 'life', 'crystal_heart', 'none'];
     expect(kinds).toContain(reward.kind);
   });
 
-  it('time reward tiene amount > 0', () => {
+  it('time_boost puede ocurrir', () => {
     let found = false;
     for (let i = 0; i < 100; i++) {
       const reward = rollReward(1, createRng(`seed-${i}`));
-      if (reward.kind === 'time') {
-        expect(reward.amount).toBeGreaterThan(0);
+      if (reward.kind === 'time_boost') {
         found = true;
         break;
       }

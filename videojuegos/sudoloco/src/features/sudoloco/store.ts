@@ -8,6 +8,7 @@ export type RunPhase = 'idle' | 'playing' | 'paused' | 'microgame' | 'between_le
 
 export interface RunState {
   phase: RunPhase;
+  previousPhase: RunPhase; // para reanudar desde pausa
   level: number;
   lives: number;         // corazones normales (con ventajas)
   crystalHearts: number; // corazones de cristal (sin ventajas)
@@ -44,6 +45,7 @@ function buildSeed(base: string, level: number): string {
 
 const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   phase: 'idle',
+  previousPhase: 'idle',
   level: 1,
   lives: 3,
   crystalHearts: 0,
@@ -125,18 +127,29 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
   },
 
   pauseRun() {
-    if (get().phase === 'playing') set({ phase: 'paused' });
+    const state = get();
+    // Permitir pausar desde cualquier fase jugable
+    if (['playing', 'microgame', 'between_levels'].includes(state.phase)) {
+      set({ previousPhase: state.phase, phase: 'paused' });
+    }
   },
 
   resumeRun() {
-    if (get().phase === 'paused') set({ phase: 'playing' });
+    const state = get();
+    if (state.phase === 'paused' && state.previousPhase !== 'paused') {
+      set({ phase: state.previousPhase });
+    }
   },
 
   grantReward(reward) {
     switch (reward.kind) {
-      case 'time':
-        set((s) => ({ timeRemaining: s.timeRemaining + reward.amount }));
+      case 'time_boost': {
+        const { level } = get();
+        // Bonus seconds: 15 + (level / 2), escalado con dificultad
+        const bonusSeconds = 15 + Math.floor(level / 2);
+        set((s) => ({ timeRemaining: s.timeRemaining + bonusSeconds }));
         break;
+      }
       case 'hint':
         set((s) => ({ hints: s.hints + 1 }));
         break;

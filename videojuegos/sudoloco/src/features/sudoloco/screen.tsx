@@ -89,9 +89,12 @@ export function SudolocoScreen() {
 
   const [microgameReward, setMicrogameReward] = useState<Reward | null>(null);
   useEffect(() => {
-    if (phase !== 'microgame' || !rng) return;
-    setMicrogameReward(rollReward(level, rng));
-  }, [phase]);
+    if (phase === 'microgame' && rng) {
+      setMicrogameReward(rollReward(level, rng));
+    } else {
+      setMicrogameReward(null);
+    }
+  }, [phase, rng, level]);
 
   useEffect(() => {
     if (phase === 'playing' && level === 1) savedRef.current = false;
@@ -177,14 +180,14 @@ export function SudolocoScreen() {
       {phase === 'microgame' && (
         <View style={styles.overlay} pointerEvents="auto">
           <Text style={styles.overlayTitle}>¡Microjuego!</Text>
-          <Text style={styles.bonusText}>+{15}s garantizados</Text>
+          <Text style={styles.bonusText}>⏱️ Tiempo bonus garantizado</Text>
           {microgameReward && (
             <Text style={styles.rewardText}>{rewardLabel(microgameReward)}</Text>
           )}
           <Pressable
             style={styles.startBtn}
             onPress={() => {
-              grantReward({ kind: 'time', amount: 15 });
+              grantReward({ kind: 'time_boost' });
               if (microgameReward) grantReward(microgameReward);
               exitMicrogame();
             }}
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
 
 function rewardLabel(reward: Reward): string {
   switch (reward.kind) {
-    case 'time': return `¡+${reward.amount}s extra!`;
+    case 'time_boost': return '⏱️ ¡Tiempo bonus!';
     case 'hint': return '🔍 ¡Una pista!';
     case 'silver_cell': return '🥈 ¡Casilla plateada!';
     case 'golden_cell': return '🥇 ¡Casilla dorada!';
