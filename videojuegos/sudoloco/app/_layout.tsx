@@ -36,12 +36,14 @@ function AuthGuard() {
 export default function RootLayout() {
   return (
     <AppProviders>
-      <StatusBar style="light" />
+      <StatusBar style="dark" backgroundColor="#efe1c6" />
       <AuthGuard />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#0f172a' },
+          statusBarBackgroundColor: '#efe1c6',
+          statusBarStyle: 'dark',
         }}
       />
     </AppProviders>
