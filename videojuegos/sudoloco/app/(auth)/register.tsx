@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import {
   createUserWithEmailAndPassword,
   updateProfile,
@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '@services/firebase';
 import { createUser } from '@services/firebase/users.repo';
+import { useStatusBarConfig } from '@/providers/StatusBarProvider';
 import { colors } from '@theme/colors';
 
 function mapAuthError(code: string): string {
@@ -35,6 +36,13 @@ function mapAuthError(code: string): string {
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
+  const { setConfig } = useStatusBarConfig();
+
+  useFocusEffect(
+    useCallback(() => {
+      setConfig({ backgroundColor: '#0f172a', barStyle: 'light' });
+    }, [setConfig])
+  );
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');

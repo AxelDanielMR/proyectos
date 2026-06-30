@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSudolocoStore } from './store';
 import { LivesDisplay, TimerDisplay, ScoreDisplay } from './ui/HUD';
@@ -17,6 +17,7 @@ import { userKeys } from '@features/auth';
 
 export function SudolocoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const {
@@ -100,19 +101,16 @@ export function SudolocoScreen() {
     if (phase === 'playing' && level === 1) savedRef.current = false;
   }, [phase, level]);
 
+  useEffect(() => {
+    if (phase === 'idle') {
+      startRun();
+    }
+  }, []);
+
   void router;
 
   if (phase === 'idle') {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.center}>
-          <Text style={styles.title}>SUDOLOCO</Text>
-          <Pressable style={styles.startBtn} onPress={() => startRun()}>
-            <Text style={styles.startBtnText}>Jugar</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
+    return null;
   }
 
   if (phase === 'gameover') {
@@ -147,9 +145,20 @@ export function SudolocoScreen() {
 
   if (!gameStoreRef.current) return null;
 
+  const urgency = Math.max(0, Math.min(1, (30 - timeRemaining) / 30));
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.hud}>
+    <View style={styles.safe}>
+      <SudokuGame
+        store={gameStoreRef.current}
+        pack={numbersPack}
+        showHintButton={hints > 0}
+        showSilverButton={silverCells > 0}
+        showGoldenButton={goldenCells > 0}
+        template={{ backgroundId: 'base', urgency, paused: phase !== 'playing' }}
+      />
+
+      <View style={[styles.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <LivesDisplay lives={lives} crystalHearts={crystalHearts} />
         <TimerDisplay timeRemaining={timeRemaining} />
         <View style={styles.hudRight}>
@@ -159,14 +168,6 @@ export function SudolocoScreen() {
           <ScoreDisplay score={score} level={level} />
         </View>
       </View>
-
-      <SudokuGame
-        store={gameStoreRef.current}
-        pack={numbersPack}
-        showHintButton={hints > 0}
-        showSilverButton={silverCells > 0}
-        showGoldenButton={goldenCells > 0}
-      />
 
       {phase === 'paused' && (
         <View style={styles.overlay} pointerEvents="auto">
@@ -196,17 +197,23 @@ export function SudolocoScreen() {
           </Pressable>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.base },
   hud: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },

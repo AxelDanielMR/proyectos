@@ -7,9 +7,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { SudokuBackground } from '@ui/SudokuBackground';
+import { useStatusBarConfig } from '@/providers/StatusBarProvider';
+import { useCallback } from 'react';
 
 type ModeKey = 'sudoloco' | 'versus' | 'historia' | 'biblio';
 type SmallKey = 'config' | 'profile' | 'store';
@@ -23,6 +25,13 @@ const RED_ACCENT = '#b8302a';
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const router = useRouter();
+  const { setConfig } = useStatusBarConfig();
+
+  useFocusEffect(
+    useCallback(() => {
+      setConfig({ backgroundColor: '#efe1c6', barStyle: 'dark' });
+    }, [setConfig])
+  );
 
   const usable = width - H_PADDING * 2;
   const primaryW = usable - SMALL_SIZE - 16;

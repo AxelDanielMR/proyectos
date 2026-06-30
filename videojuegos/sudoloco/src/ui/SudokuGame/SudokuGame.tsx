@@ -5,8 +5,15 @@ import type { SymbolPack } from '@core/symbols';
 import { colors } from '@theme/colors';
 import { Board } from '../Board';
 import { NumberPad } from '../NumberPad';
+import { PlayfieldBackground, type BackgroundId } from '../PlayfieldBackground';
 import type { SudokuGameStore } from './store';
 import { useSudokuGameActions, useSudokuGameState } from './hooks';
+
+interface SudokuGameTemplate {
+  backgroundId: BackgroundId;
+  urgency?: number;
+  paused?: boolean;
+}
 
 interface SudokuGameProps {
   store: SudokuGameStore;
@@ -14,6 +21,8 @@ interface SudokuGameProps {
   showHintButton?: boolean;
   showSilverButton?: boolean;
   showGoldenButton?: boolean;
+  /** Si se pasa, el tablero/numpad se anclan a las ventanas del marco animado. */
+  template?: SudokuGameTemplate | null;
 }
 
 export const SudokuGame = React.memo(function SudokuGame({
@@ -22,6 +31,7 @@ export const SudokuGame = React.memo(function SudokuGame({
   showHintButton = false,
   showSilverButton = false,
   showGoldenButton = false,
+  template = null,
 }: SudokuGameProps) {
   const puzzle = useStore(store, (s) => s.puzzle);
   const board = useStore(store, (s) => s.board);
@@ -47,78 +57,152 @@ export const SudokuGame = React.memo(function SudokuGame({
     }
   }
 
-  return (
-    <View style={styles.container} pointerEvents={isComplete ? 'none' : 'auto'}>
-      <Board
-        puzzle={puzzle}
-        board={board}
-        selectedIndex={selectedIndex}
-        onCellPress={actions.select}
-        pack={pack}
-        errorIndices={errorIndices}
-        notes={notesByCell}
-      />
+  const boardEl = (
+    <Board
+      puzzle={puzzle}
+      board={board}
+      selectedIndex={selectedIndex}
+      onCellPress={actions.select}
+      pack={pack}
+      errorIndices={errorIndices}
+      notes={notesByCell}
+    />
+  );
 
-      {/* Golden mode banner */}
-      {isGoldenMode && (
-        <Pressable style={styles.goldenBanner} onPress={actions.cancelGoldenMode}>
-          <Text style={styles.goldenBannerText}>✨ Toca una casilla para revelarla  ✕</Text>
-        </Pressable>
-      )}
+  const goldenBannerEl = isGoldenMode ? (
+    <Pressable style={styles.goldenBanner} onPress={actions.cancelGoldenMode}>
+      <Text style={styles.goldenBannerText}>✨ Toca una casilla para revelarla  ✕</Text>
+    </Pressable>
+  ) : null;
 
-      {/* Compact controls: powerups left, notes/erase right */}
-      <View style={styles.controlsBar}>
-        <View style={styles.controlsLeft}>
-          {showHintButton && (
-            <Pressable
-              onPress={actions.useHint}
-              disabled={hintsRemaining <= 0}
-              style={[styles.controlBtn, hintsRemaining <= 0 && styles.controlDisabled]}
-            >
-              <Text style={styles.controlEmoji}>🔍</Text>
-              <Text style={styles.controlCount}>{hintsRemaining}</Text>
-            </Pressable>
-          )}
-          {showSilverButton && (
-            <Pressable
-              onPress={actions.useSilverCell}
-              disabled={silverRemaining <= 0}
-              style={[styles.controlBtn, silverRemaining <= 0 && styles.controlDisabled]}
-            >
-              <Text style={styles.controlEmoji}>🥈</Text>
-              <Text style={styles.controlCount}>{silverRemaining}</Text>
-            </Pressable>
-          )}
-          {showGoldenButton && (
-            <Pressable
-              onPress={actions.useGoldenCell}
-              disabled={goldenRemaining <= 0}
-              style={[styles.controlBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
-            >
-              <Text style={styles.controlEmoji}>🥇</Text>
-              <Text style={styles.controlCount}>{goldenRemaining}</Text>
-            </Pressable>
-          )}
-        </View>
-
-        <View style={styles.controlsRight}>
+  const controlsBarEl = (
+    <View style={styles.controlsBar}>
+      <View style={styles.controlsLeft}>
+        {showHintButton && (
           <Pressable
-            onPress={actions.toggleNotesMode}
-            style={[styles.controlBtn, isNotesMode && styles.controlBtnActive]}
+            onPress={actions.useHint}
+            disabled={hintsRemaining <= 0}
+            style={[styles.controlBtn, hintsRemaining <= 0 && styles.controlDisabled]}
           >
-            <Text style={styles.controlEmoji}>✏️</Text>
+            <Text style={styles.controlEmoji}>🔍</Text>
+            <Text style={styles.controlCount}>{hintsRemaining}</Text>
           </Pressable>
-          <Pressable onPress={actions.erase} style={styles.controlBtn}>
-            <Text style={styles.controlEmoji}>🧹</Text>
+        )}
+        {showSilverButton && (
+          <Pressable
+            onPress={actions.useSilverCell}
+            disabled={silverRemaining <= 0}
+            style={[styles.controlBtn, silverRemaining <= 0 && styles.controlDisabled]}
+          >
+            <Text style={styles.controlEmoji}>🥈</Text>
+            <Text style={styles.controlCount}>{silverRemaining}</Text>
           </Pressable>
-        </View>
+        )}
+        {showGoldenButton && (
+          <Pressable
+            onPress={actions.useGoldenCell}
+            disabled={goldenRemaining <= 0}
+            style={[styles.controlBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
+          >
+            <Text style={styles.controlEmoji}>🥇</Text>
+            <Text style={styles.controlCount}>{goldenRemaining}</Text>
+          </Pressable>
+        )}
       </View>
 
-      <NumberPad
-        pack={pack}
-        onSelect={handleNumberSelect}
-        disabled={isComplete}
+      <View style={styles.controlsRight}>
+        <Pressable
+          onPress={actions.toggleNotesMode}
+          style={[styles.controlBtn, isNotesMode && styles.controlBtnActive]}
+        >
+          <Text style={styles.controlEmoji}>✏️</Text>
+        </Pressable>
+        <Pressable onPress={actions.erase} style={styles.controlBtn}>
+          <Text style={styles.controlEmoji}>🧹</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const numpadEl = (
+    <NumberPad
+      pack={pack}
+      onSelect={handleNumberSelect}
+      disabled={isComplete}
+      widthPercent={template ? '100%' : '78%'}
+    />
+  );
+
+  // Columna de acciones a la derecha del tablero (modo template). Los power-ups
+  // se muestran SIEMPRE, atenuados cuando no quedan, para que el espacio sea estable.
+  const columnEl = (
+    <View style={styles.templateButtonColumn}>
+      <Pressable
+        onPress={actions.useHint}
+        disabled={hintsRemaining <= 0}
+        style={[styles.columnBtn, hintsRemaining <= 0 && styles.controlDisabled]}
+      >
+        <Text style={styles.controlEmoji}>🔍</Text>
+        <Text style={styles.controlCount}>{hintsRemaining}</Text>
+      </Pressable>
+      <Pressable
+        onPress={actions.useSilverCell}
+        disabled={silverRemaining <= 0}
+        style={[styles.columnBtn, silverRemaining <= 0 && styles.controlDisabled]}
+      >
+        <Text style={styles.controlEmoji}>🥈</Text>
+        <Text style={styles.controlCount}>{silverRemaining}</Text>
+      </Pressable>
+      <Pressable
+        onPress={actions.useGoldenCell}
+        disabled={goldenRemaining <= 0}
+        style={[styles.columnBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
+      >
+        <Text style={styles.controlEmoji}>🥇</Text>
+        <Text style={styles.controlCount}>{goldenRemaining}</Text>
+      </Pressable>
+      <Pressable
+        onPress={actions.toggleNotesMode}
+        style={[styles.columnBtn, isNotesMode && styles.controlBtnActive]}
+      >
+        <Text style={styles.controlEmoji}>✏️</Text>
+      </Pressable>
+      <Pressable onPress={actions.erase} style={styles.columnBtn}>
+        <Text style={styles.controlEmoji}>🧹</Text>
+      </Pressable>
+    </View>
+  );
+
+  if (template) {
+    return (
+      <PlayfieldBackground
+        backgroundId={template.backgroundId}
+        urgency={template.urgency}
+        paused={template.paused}
+        boardSlot={
+          <View style={styles.templateBoardWrap} pointerEvents={isComplete ? 'none' : 'auto'}>
+            {boardEl}
+          </View>
+        }
+        controlsSlot={
+          <View style={styles.templateControls} pointerEvents={isComplete ? 'none' : 'auto'}>
+            {goldenBannerEl}
+            <View style={styles.templateControlsRow}>
+              <View style={styles.templateNumpadWrap}>{numpadEl}</View>
+              {columnEl}
+            </View>
+          </View>
+        }
       />
+    );
+  }
+
+  return (
+    <View style={styles.container} pointerEvents={isComplete ? 'none' : 'auto'}>
+      {boardEl}
+      {goldenBannerEl}
+      {controlsBarEl}
+      {numpadEl}
     </View>
   );
 });
@@ -131,6 +215,48 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: 'center',
   },
+  // 110% = tablero 10% más grande; rebasa un poco la ventana hacia los lados.
+  templateBoardWrap: {
+    width: '110%',
+  },
+  // Numpad + columna de botones, lado a lado, dentro de la ventana inferior.
+  templateControlsRow: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  // Numpad cuadrado del alto de la ventana inferior (máximo sin desbordar).
+  templateNumpadWrap: {
+    height: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  templateButtonColumn: {
+    justifyContent: 'center',
+    gap: 8,
+  },
+  columnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.bg.surface,
+  },
+  templateControls: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  // Acota el numpad para que su forma cuadrada quepa en la ventana inferior.
+  // Ajustar este % si el numpad se sale o queda chico en dispositivo.
   goldenBanner: {
     backgroundColor: 'rgba(245,158,11,0.15)',
     borderRadius: 8,

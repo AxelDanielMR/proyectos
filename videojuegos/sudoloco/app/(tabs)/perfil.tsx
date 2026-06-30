@@ -1,15 +1,25 @@
+import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useAuthStore, useUserProfile, useUpdateSymbolPack } from '@features/auth';
 import { SYMBOL_PACKS } from '@core/symbols';
 import { colors } from '@theme/colors';
+import { useStatusBarConfig } from '@/providers/StatusBarProvider';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { user, signOut } = useAuthStore();
   const { data: profile, isLoading } = useUserProfile(user?.uid);
   const { mutate: updatePack, isPending: updatingPack } = useUpdateSymbolPack();
+  const { setConfig } = useStatusBarConfig();
+
+  useFocusEffect(
+    useCallback(() => {
+      setConfig({ backgroundColor: '#0f172a', barStyle: 'light' });
+    }, [setConfig])
+  );
 
   if (isLoading) {
     return (

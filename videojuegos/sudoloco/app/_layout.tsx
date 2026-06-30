@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthStore } from '@features/auth';
+import { useStatusBarConfig } from '@/providers/StatusBarProvider';
 
 function AuthGuard() {
   const { status } = useAuthStore();
@@ -11,13 +12,11 @@ function AuthGuard() {
   const segments = useSegments();
   const router = useRouter();
 
-  // Start the Firebase Auth listener once on mount.
   useEffect(() => {
     const unsub = _startListener();
     return unsub;
   }, []);
 
-  // Redirect based on auth status once resolved.
   useEffect(() => {
     if (status === 'loading') return;
 
@@ -33,19 +32,29 @@ function AuthGuard() {
   return null;
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { config } = useStatusBarConfig();
+
   return (
-    <AppProviders>
-      <StatusBar style="dark" backgroundColor="#efe1c6" />
+    <>
+      <StatusBar style={config.barStyle} backgroundColor={config.backgroundColor} />
       <AuthGuard />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#0f172a' },
-          statusBarBackgroundColor: '#efe1c6',
-          statusBarStyle: 'dark',
+          statusBarBackgroundColor: config.backgroundColor,
+          statusBarStyle: config.barStyle,
         }}
       />
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppProviders>
+      <RootLayoutContent />
     </AppProviders>
   );
 }

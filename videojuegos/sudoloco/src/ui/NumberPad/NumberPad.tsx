@@ -10,6 +10,8 @@ export interface NumberPadProps {
   pack: SymbolPack;
   onSelect: (value: CellValue) => void;
   disabled?: boolean;
+  /** Ancho del teclado relativo a su contenedor. Default '78%'. */
+  widthPercent?: `${number}%`;
 }
 
 function PadButton({
@@ -50,9 +52,9 @@ function SymbolContent({ item }: { item: SymbolItem }) {
   return null;
 }
 
-export function NumberPad({ pack, onSelect, disabled = false }: NumberPadProps) {
+export function NumberPad({ pack, onSelect, disabled = false, widthPercent = '78%' }: NumberPadProps) {
   return (
-    <View style={[styles.pad, { opacity: disabled ? 0.4 : 1 }]} pointerEvents={disabled ? 'none' : 'auto'}>
+    <View style={[styles.pad, { width: widthPercent, opacity: disabled ? 0.4 : 1 }]} pointerEvents={disabled ? 'none' : 'auto'}>
       {[0, 1, 2].map((row) => (
         <View key={row} style={styles.row}>
           {[0, 1, 2].map((col) => {
@@ -72,7 +74,6 @@ export function NumberPad({ pack, onSelect, disabled = false }: NumberPadProps) 
 
 const styles = StyleSheet.create({
   pad: {
-    width: '78%',
     alignSelf: 'center',
   },
   row: {
