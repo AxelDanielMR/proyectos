@@ -45,10 +45,13 @@ function symbolColor(isFixed: boolean, isError: boolean): string {
 function SymbolDisplay({
   item,
   color,
+  tintable = false,
   small = false,
 }: {
   item: SymbolItem;
   color: string;
+  /** Si el pack es monocromo, recolorea la imagen a `color` para contrastar. */
+  tintable?: boolean;
   small?: boolean;
 }) {
   if (item.kind === 'text') {
@@ -69,27 +72,41 @@ function SymbolDisplay({
     );
   }
   if (item.kind === 'image') {
-    return <Image source={item.source} style={{ width: imgSize, height: imgSize }} resizeMode="contain" />;
+    return (
+      <Image
+        source={item.source}
+        style={{ width: imgSize, height: imgSize, tintColor: tintable ? color : undefined }}
+        resizeMode="contain"
+      />
+    );
   }
   return null;
 }
 
+// Rejilla 3×3 con posiciones FIJAS: el número n siempre ocupa la misma celda
+// (1 arriba-izq … 9 abajo-der), sin importar cuántas notas haya. Se arma con
+// tres filas explícitas en vez de flexWrap para que el layout sea determinista.
 function NotesGrid({ notes, pack }: { notes: ReadonlySet<number>; pack: SymbolPack }) {
   return (
     <View style={styles.notesGrid}>
-      {Array.from({ length: 9 }, (_, i) => {
-        const n = i + 1;
-        const item = pack.items[i];
-        return (
-          <View key={n} style={styles.noteCell}>
-            {notes.has(n) && item != null ? (
-              <View style={{ opacity: 0.45 }}>
-                <SymbolDisplay item={item} color={colors.text.muted} small />
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={styles.notesRow}>
+          {[0, 1, 2].map((col) => {
+            const i = row * 3 + col;
+            const n = i + 1;
+            const item = pack.items[i];
+            return (
+              <View key={n} style={styles.noteCell}>
+                {notes.has(n) && item != null ? (
+                  <View style={{ opacity: 0.45 }}>
+                    <SymbolDisplay item={item} color={colors.text.muted} tintable={pack.tintable} small />
+                  </View>
+                ) : null}
               </View>
-            ) : null}
-          </View>
-        );
-      })}
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -155,7 +172,7 @@ export function Cell({
         {showNotes ? (
           <NotesGrid notes={notes} pack={pack} />
         ) : item != null ? (
-          <SymbolDisplay item={item} color={symbolColor(isFixed, isError)} />
+          <SymbolDisplay item={item} color={symbolColor(isFixed, isError)} tintable={pack.tintable} />
         ) : null}
       </Animated.View>
     </Pressable>
@@ -173,15 +190,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Ocupa la celda completa: el contenedor `inner` centra su contenido, así que
+  // sin un tamaño explícito la rejilla se encoge y las columnas dejan de caer en
+  // tercios fijos (los números se salían de su posición).
   notesGrid: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    width: '100%',
+    height: '100%',
     padding: 1,
   },
+  notesRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
   noteCell: {
-    width: '33.33%',
-    aspectRatio: 1,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

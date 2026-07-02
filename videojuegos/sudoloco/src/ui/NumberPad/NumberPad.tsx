@@ -39,7 +39,9 @@ function PadButton({
   );
 }
 
-function SymbolContent({ item }: { item: SymbolItem }) {
+// El teclado siempre está sobre una superficie oscura, así que los glifos
+// monocromos se recolorean a claro para que contrasten.
+function SymbolContent({ item, tintable }: { item: SymbolItem; tintable: boolean }) {
   if (item.kind === 'text') {
     return <Text style={styles.padText}>{item.value}</Text>;
   }
@@ -47,7 +49,13 @@ function SymbolContent({ item }: { item: SymbolItem }) {
     return <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: item.hex }} />;
   }
   if (item.kind === 'image') {
-    return <Image source={item.source} style={{ width: 28, height: 28 }} resizeMode="contain" />;
+    return (
+      <Image
+        source={item.source}
+        style={{ width: 28, height: 28, tintColor: tintable ? colors.text.primary : undefined }}
+        resizeMode="contain"
+      />
+    );
   }
   return null;
 }
@@ -62,7 +70,7 @@ export function NumberPad({ pack, onSelect, disabled = false, widthPercent = '78
             const item = pack.items[n - 1];
             return (
               <PadButton key={n} onPress={() => onSelect(n)}>
-                {item != null ? <SymbolContent item={item} /> : null}
+                {item != null ? <SymbolContent item={item} tintable={!!pack.tintable} /> : null}
               </PadButton>
             );
           })}

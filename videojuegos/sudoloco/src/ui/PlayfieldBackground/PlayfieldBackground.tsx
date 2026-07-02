@@ -40,8 +40,8 @@ interface PlayfieldBackgroundProps {
   /** Congela la animación (pausa, microjuego, game over). */
   paused?: boolean;
   /** Intervalo entre frames en reposo (urgency = 0). */
-  baseInterval?: number; // 280ms en ritmo normal
-  /** Intervalo mínimo en urgencia máxima (urgency = 1). */
+  baseInterval?: number; // 240ms en ritmo normal
+  /** Intervalo mínimo en urgencia máxima (urgency = 1). Muy bajo = frenético. */
   minInterval?: number;
   /** Contenido que se ancla a la ventana superior del marco (tablero). */
   boardSlot?: ReactNode;
@@ -52,7 +52,7 @@ interface PlayfieldBackgroundProps {
 
 function intervalFor(urgency: number, baseInterval: number, minInterval: number): number {
   const u = Math.max(0, Math.min(1, urgency));
-  // Cuadrática: aceleración suave al principio, agresiva al final.
+  // Cuadrática: rampa perceptible desde 30s y frenética cerca de 0.
   return baseInterval - u * u * (baseInterval - minInterval);
 }
 
@@ -61,7 +61,7 @@ export const PlayfieldBackground = React.memo(function PlayfieldBackground({
   urgency = 0,
   paused = false,
   baseInterval = 240,
-  minInterval = 60,
+  minInterval = 28,
   boardSlot,
   controlsSlot,
   style,

@@ -42,6 +42,10 @@ export type SudokuGameStore = ReturnType<typeof createSudokuGameStore>;
 export function createSudokuGameStore(opts: SudokuGameOptions) {
   const { puzzle, rng, callbacks } = opts;
 
+  // Última celda resaltada por una pista, para que la siguiente pista lleve a
+  // otra distinta en vez de repetir la misma.
+  let lastHintIndex = -1;
+
   return createStore<SudokuGameState & SudokuGameActions>()((set, get) => ({
     puzzle,
     board: puzzle.initial,
@@ -186,18 +190,24 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
       const { hintsRemaining, board, selectedIndex } = get();
       if (hintsRemaining <= 0) return;
 
-      let targetIdx: number;
-      if (
+      // Usa la celda seleccionada por el jugador solo si es un objetivo válido
+      // y NO es la misma que resaltó la pista anterior; si no, elige otra celda
+      // sin resolver (excluyendo la última pista para no repetirla).
+      const selectedIsValidTarget =
         selectedIndex !== null &&
+        selectedIndex !== lastHintIndex &&
         puzzle.initial[selectedIndex] === 0 &&
-        board[selectedIndex] !== puzzle.solution[selectedIndex]
-      ) {
-        targetIdx = selectedIndex;
+        board[selectedIndex] !== puzzle.solution[selectedIndex];
+
+      let targetIdx: number;
+      if (selectedIsValidTarget) {
+        targetIdx = selectedIndex as number;
       } else {
-        targetIdx = pickHintCell(board, puzzle.solution, rng);
+        targetIdx = pickHintCell(board, puzzle.solution, rng, lastHintIndex);
         if (targetIdx === -1) return;
       }
 
+      lastHintIndex = targetIdx;
       set({ selectedIndex: targetIdx, hintsRemaining: hintsRemaining - 1 });
     },
 

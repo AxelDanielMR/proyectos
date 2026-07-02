@@ -15,15 +15,22 @@ export function revealCandidate(
 }
 
 // Picks the index of an unsolved cell to use as a hint target.
-// Returns -1 if the board is already complete.
-export function pickHintCell(board: Board, solution: Board, rng: Rng): number {
+// `exclude` skips a specific index (e.g. the previous hint) so consecutive
+// hints land on different cells. Returns -1 if there is no valid target.
+export function pickHintCell(
+  board: Board,
+  solution: Board,
+  rng: Rng,
+  exclude = -1,
+): number {
   const candidates: number[] = [];
   for (let i = 0; i < 81; i++) {
     const sol = solution[i];
-    if (sol !== undefined && sol !== 0 && board[i] !== sol) {
+    if (sol !== undefined && sol !== 0 && board[i] !== sol && i !== exclude) {
       candidates.push(i);
     }
   }
+  // Si el único candidato restante era el excluido, no hay a dónde ir.
   if (candidates.length === 0) return -1;
   return candidates[Math.floor(rng() * candidates.length)]!;
 }

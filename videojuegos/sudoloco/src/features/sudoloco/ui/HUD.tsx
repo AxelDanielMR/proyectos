@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@theme/colors';
+import { actionIcons } from '@ui/icons';
 
 interface LivesDisplayProps {
   lives: number;
@@ -11,10 +12,15 @@ export const LivesDisplay = React.memo(function LivesDisplay({ lives, crystalHea
   return (
     <View style={styles.livesRow}>
       {Array.from({ length: 3 }, (_, i) => (
-        <Text key={i} style={[styles.heart, i >= lives && styles.heartLost]}>♥</Text>
+        <Image
+          key={i}
+          source={actionIcons.heart}
+          style={[styles.heart, i >= lives && styles.heartLost]}
+          resizeMode="contain"
+        />
       ))}
       {Array.from({ length: crystalHearts }, (_, i) => (
-        <Text key={`c-${i}`} style={styles.crystalHeart}>◇</Text>
+        <Image key={`c-${i}`} source={actionIcons.frozenHeart} style={styles.crystalHeart} resizeMode="contain" />
       ))}
     </View>
   );
@@ -58,15 +64,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heart: {
-    fontSize: 22,
-    color: colors.brand.primary,
+    width: 24,
+    height: 24,
   },
   heartLost: {
     opacity: 0.25,
   },
   crystalHeart: {
-    fontSize: 20,
-    color: '#93c5fd',
+    width: 22,
+    height: 22,
   },
   timerBox: {
     paddingHorizontal: 10,

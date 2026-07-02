@@ -4,6 +4,7 @@ export const numbersPack: SymbolPack = {
   id: 'numbers',
   name: 'Números',
   kind: 'image',
+  tintable: true,
   items: [
     { kind: 'image', source: require('../../../assets/symbols/numbers/1.png') },
     { kind: 'image', source: require('../../../assets/symbols/numbers/2.png') },

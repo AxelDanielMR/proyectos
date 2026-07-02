@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStore } from 'zustand/react';
 import type { SymbolPack } from '@core/symbols';
 import { colors } from '@theme/colors';
+import { actionIcons } from '@ui/icons';
 import { Board } from '../Board';
 import { NumberPad } from '../NumberPad';
 import { PlayfieldBackground, type BackgroundId } from '../PlayfieldBackground';
@@ -84,7 +85,7 @@ export const SudokuGame = React.memo(function SudokuGame({
             disabled={hintsRemaining <= 0}
             style={[styles.controlBtn, hintsRemaining <= 0 && styles.controlDisabled]}
           >
-            <Text style={styles.controlEmoji}>🔍</Text>
+            <Image source={actionIcons.hint} style={styles.controlIcon} resizeMode="contain" />
             <Text style={styles.controlCount}>{hintsRemaining}</Text>
           </Pressable>
         )}
@@ -94,7 +95,7 @@ export const SudokuGame = React.memo(function SudokuGame({
             disabled={silverRemaining <= 0}
             style={[styles.controlBtn, silverRemaining <= 0 && styles.controlDisabled]}
           >
-            <Text style={styles.controlEmoji}>🥈</Text>
+            <Image source={actionIcons.silverCell} style={styles.controlIcon} resizeMode="contain" />
             <Text style={styles.controlCount}>{silverRemaining}</Text>
           </Pressable>
         )}
@@ -104,7 +105,7 @@ export const SudokuGame = React.memo(function SudokuGame({
             disabled={goldenRemaining <= 0}
             style={[styles.controlBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
           >
-            <Text style={styles.controlEmoji}>🥇</Text>
+            <Image source={actionIcons.goldenCell} style={styles.controlIcon} resizeMode="contain" />
             <Text style={styles.controlCount}>{goldenRemaining}</Text>
           </Pressable>
         )}
@@ -115,10 +116,10 @@ export const SudokuGame = React.memo(function SudokuGame({
           onPress={actions.toggleNotesMode}
           style={[styles.controlBtn, isNotesMode && styles.controlBtnActive]}
         >
-          <Text style={styles.controlEmoji}>✏️</Text>
+          <Image source={actionIcons.pencil} style={styles.controlIcon} resizeMode="contain" />
         </Pressable>
         <Pressable onPress={actions.erase} style={styles.controlBtn}>
-          <Text style={styles.controlEmoji}>🧹</Text>
+          <Image source={actionIcons.eraser} style={styles.controlIcon} resizeMode="contain" />
         </Pressable>
       </View>
     </View>
@@ -142,7 +143,7 @@ export const SudokuGame = React.memo(function SudokuGame({
         disabled={hintsRemaining <= 0}
         style={[styles.columnBtn, hintsRemaining <= 0 && styles.controlDisabled]}
       >
-        <Text style={styles.controlEmoji}>🔍</Text>
+        <Image source={actionIcons.hint} style={styles.controlIcon} resizeMode="contain" />
         <Text style={styles.controlCount}>{hintsRemaining}</Text>
       </Pressable>
       <Pressable
@@ -150,7 +151,7 @@ export const SudokuGame = React.memo(function SudokuGame({
         disabled={silverRemaining <= 0}
         style={[styles.columnBtn, silverRemaining <= 0 && styles.controlDisabled]}
       >
-        <Text style={styles.controlEmoji}>🥈</Text>
+        <Image source={actionIcons.silverCell} style={styles.controlIcon} resizeMode="contain" />
         <Text style={styles.controlCount}>{silverRemaining}</Text>
       </Pressable>
       <Pressable
@@ -158,17 +159,17 @@ export const SudokuGame = React.memo(function SudokuGame({
         disabled={goldenRemaining <= 0}
         style={[styles.columnBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
       >
-        <Text style={styles.controlEmoji}>🥇</Text>
+        <Image source={actionIcons.goldenCell} style={styles.controlIcon} resizeMode="contain" />
         <Text style={styles.controlCount}>{goldenRemaining}</Text>
       </Pressable>
       <Pressable
         onPress={actions.toggleNotesMode}
         style={[styles.columnBtn, isNotesMode && styles.controlBtnActive]}
       >
-        <Text style={styles.controlEmoji}>✏️</Text>
+        <Image source={actionIcons.pencil} style={styles.controlIcon} resizeMode="contain" />
       </Pressable>
       <Pressable onPress={actions.erase} style={styles.columnBtn}>
-        <Text style={styles.controlEmoji}>🧹</Text>
+        <Image source={actionIcons.eraser} style={styles.controlIcon} resizeMode="contain" />
       </Pressable>
     </View>
   );
@@ -300,8 +301,9 @@ const styles = StyleSheet.create({
   controlDisabled: {
     opacity: 0.4,
   },
-  controlEmoji: {
-    fontSize: 16,
+  controlIcon: {
+    width: 20,
+    height: 20,
   },
   controlCount: {
     fontSize: 13,
