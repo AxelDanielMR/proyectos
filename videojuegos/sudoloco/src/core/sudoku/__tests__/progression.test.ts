@@ -1,4 +1,5 @@
 import { levelConfig, INITIAL_TIME_S } from '../progression';
+import { buildPuzzleSeed } from '@core/sudoku';
 
 describe('levelConfig', () => {
   it('nivel 1-3 son beginner', () => {
@@ -40,5 +41,16 @@ describe('levelConfig', () => {
 
   it('INITIAL_TIME_S = 180', () => {
     expect(INITIAL_TIME_S).toBe(180);
+  });
+});
+
+describe('buildPuzzleSeed', () => {
+  it('combina runSeed y nivel de forma estable', () => {
+    expect(buildPuzzleSeed('abc', 1)).toBe('abc:1');
+    expect(buildPuzzleSeed('abc', 12)).toBe('abc:12');
+  });
+
+  it('es determinista para el mismo input', () => {
+    expect(buildPuzzleSeed('xyz', 5)).toBe(buildPuzzleSeed('xyz', 5));
   });
 });

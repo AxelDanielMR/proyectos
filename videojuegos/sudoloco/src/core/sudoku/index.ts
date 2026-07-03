@@ -15,7 +15,7 @@ export { solve, countSolutions, hasUniqueSolution } from './solver';
 export { getClueRange, getClueCount } from './difficulty';
 export { generate } from './generator';
 export { computeProgress, detectBoxCompletion } from './progress';
-export { levelConfig, INITIAL_TIME_S } from './progression';
+export { levelConfig, INITIAL_TIME_S, buildPuzzleSeed } from './progression';
 export type { LevelConfig } from './progression';
 export { rollReward } from './rewards';
 export type { Reward } from './rewards';

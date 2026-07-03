@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@ui/primitives/Text';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,

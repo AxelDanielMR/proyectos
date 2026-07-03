@@ -62,5 +62,11 @@
     "numbers": "Números",
     "colors": "Colores",
     "noData": "Sin datos"
+  },
+  "microgames": {
+    "title": "¡Microjuego!",
+    "ready": "¿Listo?",
+    "ponElSombrero": "Pon el sombrero",
+    "homeRun": "Home run"
   }
 }

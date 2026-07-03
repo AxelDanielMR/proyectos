@@ -1,4 +1,4 @@
-import type { CellValue, Puzzle } from '@core/sudoku';
+import type { Board, CellValue, Puzzle } from '@core/sudoku';
 import type { Rng } from '@core/sudoku';
 
 export interface SudokuGameCallbacks {
@@ -14,5 +14,8 @@ export interface SudokuGameOptions {
   initialHints?: number;
   initialSilverCells?: number;
   initialGoldenCells?: number;
+  initialBoard?: Board;
+  initialNotes?: ReadonlyMap<number, ReadonlySet<CellValue>>;
+  initialErrorIndices?: ReadonlySet<number>;
   callbacks?: SudokuGameCallbacks;
 }

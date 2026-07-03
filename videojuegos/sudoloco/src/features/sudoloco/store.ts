@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { createRng, generate, levelConfig, INITIAL_TIME_S } from '@core/sudoku';
+import { createRng, generate, levelConfig, INITIAL_TIME_S, buildPuzzleSeed } from '@core/sudoku';
 import type { Puzzle } from '@core/sudoku';
 import { computeRunReward } from '@core/sudoku';
 import type { Rng } from '@core/sudoku';
+import type { RestoredRun } from './save';
 
 export type RunPhase = 'idle' | 'playing' | 'paused' | 'microgame' | 'between_levels' | 'gameover';
 
@@ -18,6 +19,7 @@ export interface RunState {
   silverCells: number;
   goldenCells: number;
   coinsEarned: number;
+  settled: boolean; // true una vez canjeadas monedas/highscore al terminar la run
   puzzle: Puzzle | null;
   rng: Rng | null;
   seed: string;
@@ -25,6 +27,8 @@ export interface RunState {
 
 interface RunActions {
   startRun(seed?: string): void;
+  restoreRun(restored: RestoredRun): void;
+  markSettled(): void;
   onCellCorrect(idx: number): void;
   onCellIncorrect(): void;
   onBoxComplete(boxIndex: number): void;
@@ -39,10 +43,6 @@ interface RunActions {
   _finishRun(): void;
 }
 
-function buildSeed(base: string, level: number): string {
-  return `${base}:${level}`;
-}
-
 const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   phase: 'idle',
   previousPhase: 'idle',
@@ -55,6 +55,7 @@ const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   silverCells: 0,
   goldenCells: 0,
   coinsEarned: 0,
+  settled: false,
   seed: '',
 };
 
@@ -67,8 +68,35 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     const runSeed = seed ?? String(Date.now());
     const rng = createRng(runSeed);
     const { difficulty } = levelConfig(1);
-    const puzzle = generate(difficulty, buildSeed(runSeed, 1));
+    const puzzle = generate(difficulty, buildPuzzleSeed(runSeed, 1));
     set({ ...INITIAL_STATE, phase: 'playing', puzzle, rng, seed: runSeed });
+  },
+
+  restoreRun(r) {
+    set({
+      phase: 'playing',
+      previousPhase: 'idle',
+      level: r.level,
+      lives: r.lives,
+      crystalHearts: r.crystalHearts,
+      timeRemaining: r.timeRemaining,
+      score: r.score,
+      // El run store solo usa estos contadores para sincronizar con el game
+      // store (diff = otorgados − restantes). Fijarlos a los restantes evita
+      // re-otorgar powerups ya usados al reanudar.
+      hints: r.hintsRemaining,
+      silverCells: r.silverRemaining,
+      goldenCells: r.goldenRemaining,
+      coinsEarned: 0,
+      settled: false,
+      seed: r.seed,
+      puzzle: r.puzzle,
+      rng: r.rng,
+    });
+  },
+
+  markSettled() {
+    set({ settled: true });
   },
 
   onCellCorrect(idx) {
@@ -179,7 +207,7 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     if (phase !== 'between_levels') return;
     const nextLevel = level + 1;
     const { difficulty } = levelConfig(nextLevel);
-    const puzzle = generate(difficulty, buildSeed(seed, nextLevel));
+    const puzzle = generate(difficulty, buildPuzzleSeed(seed, nextLevel));
     set((s) => ({ level: nextLevel, puzzle, phase: 'playing', rng, timeRemaining: s.timeRemaining + 60 }));
   },
 

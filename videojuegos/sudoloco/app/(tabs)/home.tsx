@@ -2,10 +2,10 @@ import {
   Image,
   type ImageSourcePropType,
   Pressable,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Text } from '@ui/primitives/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 
@@ -69,7 +69,7 @@ export default function HomeScreen() {
           <Text
             style={{
               fontSize: 42,
-              fontWeight: '900',
+              fontWeight: '700',
               letterSpacing: 6,
               color: INK,
               textShadowColor: 'rgba(184, 48, 42, 0.35)',

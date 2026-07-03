@@ -48,16 +48,16 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
 
   return createStore<SudokuGameState & SudokuGameActions>()((set, get) => ({
     puzzle,
-    board: puzzle.initial,
+    board: opts.initialBoard ?? puzzle.initial,
     selectedIndex: null,
-    notesByCell: new Map(),
-    errorIndices: new Set(),
+    notesByCell: opts.initialNotes ?? new Map(),
+    errorIndices: opts.initialErrorIndices ?? new Set(),
     hintsRemaining: opts.initialHints ?? 0,
     silverRemaining: opts.initialSilverCells ?? 0,
     goldenRemaining: opts.initialGoldenCells ?? 0,
     isGoldenMode: false,
     isNotesMode: false,
-    isComplete: false,
+    isComplete: opts.initialBoard ? isBoardSolved(opts.initialBoard, puzzle.solution) : false,
 
     select(idx) {
       const { isGoldenMode, board, isComplete } = get();

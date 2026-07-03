@@ -27,5 +27,24 @@ module.exports = {
         '^@core/(.*)$': '<rootDir>/src/core/$1',
       },
     },
+    {
+      displayName: 'unit',
+      testMatch: [
+        '<rootDir>/src/features/**/__tests__/**/*.test.ts',
+        '<rootDir>/src/ui/**/__tests__/**/*.test.ts',
+      ],
+      preset: 'ts-jest',
+      testEnvironment: 'node',
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+        '^@core/(.*)$': '<rootDir>/src/core/$1',
+        '^@features/(.*)$': '<rootDir>/src/features/$1',
+        '^@ui/(.*)$': '<rootDir>/src/ui/$1',
+        '^@services/(.*)$': '<rootDir>/src/services/$1',
+        '^@lib/(.*)$': '<rootDir>/src/lib/$1',
+        '^@theme/(.*)$': '<rootDir>/src/theme/$1',
+        '^@i18n/(.*)$': '<rootDir>/src/i18n/$1',
+      },
+    },
   ],
 };

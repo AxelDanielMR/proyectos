@@ -2,9 +2,11 @@ import '../global.css';
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuthStore } from '@features/auth';
 import { useStatusBarConfig } from '@/providers/StatusBarProvider';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 function AuthGuard() {
   const { status } = useAuthStore();
@@ -52,9 +54,22 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  // Carga en runtime (compatible con Expo Go). Cada peso es una familia propia;
+  // el default global usa 'PixelifySans' (ver src/theme/typography.ts).
+  const [fontsLoaded] = useFonts({
+    PixelifySans: require('../assets/fonts/PixelifySans-Regular.ttf'),
+    'PixelifySans-Medium': require('../assets/fonts/PixelifySans-Medium.ttf'),
+    'PixelifySans-SemiBold': require('../assets/fonts/PixelifySans-SemiBold.ttf'),
+    'PixelifySans-Bold': require('../assets/fonts/PixelifySans-Bold.ttf'),
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
-    <AppProviders>
-      <RootLayoutContent />
-    </AppProviders>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppProviders>
+        <RootLayoutContent />
+      </AppProviders>
+    </GestureHandlerRootView>
   );
 }

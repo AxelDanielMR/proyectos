@@ -1,17 +1,4 @@
-import type { ComponentType } from 'react';
-
-export type MicrogameResult = 'win' | 'lose' | 'timeout';
-
-export interface MicrogameProps {
-  onResult: (result: MicrogameResult) => void;
-}
-
-export interface Microgame {
-  readonly id: string;
-  readonly name: string;
-  readonly durationMs: number;
-  readonly Component: ComponentType<MicrogameProps>;
-}
+import type { Microgame } from './types';
 
 const registry = new Map<string, Microgame>();
 
@@ -26,6 +13,11 @@ export function getMicrogame(id: string): Microgame | undefined {
   return registry.get(id);
 }
 
-export function listMicrogames(): readonly Microgame[] {
-  return Array.from(registry.values());
+export function listMicrogames(): Microgame[] {
+  return [...registry.values()];
+}
+
+/** Solo para tests. */
+export function _clearRegistry(): void {
+  registry.clear();
 }

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx expo install react-native-gesture-handler)",
+      "PowerShell(npm test -- \"dragMatch|tapTiming\" 2>&1)",
+      "PowerShell(npm run lint)"
+    ]
+  }
+}

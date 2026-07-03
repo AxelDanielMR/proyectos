@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
+import { Text } from '@ui/primitives/Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSudolocoStore } from './store';
 import { LivesDisplay, TimerDisplay, ScoreDisplay } from './ui/HUD';
 import { SudokuGame } from '@ui/SudokuGame';
 import { createSudokuGameStore } from '@ui/SudokuGame';
+import type { SudokuGameStore } from '@ui/SudokuGame';
 import { numbersPack } from '@core/symbols';
 import { rollReward } from '@core/sudoku';
 import type { Reward } from '@core/sudoku';
@@ -14,6 +16,11 @@ import { useAuthStore } from '@features/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateHighscoreIfBetter, addCoins } from '@services/firebase/users.repo';
 import { userKeys } from '@features/auth';
+import { loadSave, clearSave } from './save.storage';
+import { deserializeRun, type SavedRun, type RestoredRun } from './save';
+import { useAutoSave, snapshotSave } from './useAutoSave';
+import { MicrogameRunner, listMicrogames, pickMicrogame, levelToDifficulty } from '@features/microjuegos';
+import type { Microgame } from '@features/microjuegos';
 
 export function SudolocoScreen() {
   const router = useRouter();
@@ -22,65 +29,105 @@ export function SudolocoScreen() {
   const qc = useQueryClient();
   const {
     phase, level, lives, crystalHearts, timeRemaining, score,
-    hints, silverCells, goldenCells, coinsEarned, puzzle, rng,
-    startRun, onCellCorrect, onCellIncorrect, onBoxComplete,
+    hints, silverCells, goldenCells, coinsEarned, puzzle, rng, seed,
+    startRun, restoreRun, onCellCorrect, onCellIncorrect, onBoxComplete,
     onPuzzleComplete, tick, nextLevel, exitMicrogame, grantReward,
-    resetRun, pauseRun, resumeRun,
+    resetRun, pauseRun, resumeRun, settled, markSettled,
   } = useSudolocoStore();
 
-  const savedRef = useRef(false);
+  // undefined = aún no revisado; null = revisado, sin save; SavedRun = hay save.
+  const [pendingSave, setPendingSave] = useState<SavedRun | null | undefined>(undefined);
+  const [gameStore, setGameStore] = useState<SudokuGameStore | null>(null);
+  // bootstrap async terminado: el efecto del puzzle no construye hasta entonces,
+  // para no crear un tablero fresco antes de que resuelva loadSave (AsyncStorage).
+  const [bootstrapped, setBootstrapped] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const restoreDataRef = useRef<RestoredRun | null>(null);
+
+  useAutoSave(gameStore);
+
+  // Al montar: cargar save (async). En idle, esperar decisión (Continuar/Nueva) o
+  // iniciar. Si la ruta se re-monta a media run (el gameStore local se perdió al
+  // desmontar), recuperar el tablero desde el save del disco para no perder progreso.
   useEffect(() => {
-    if (phase !== 'gameover' || savedRef.current || !user) return;
-    savedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const save = await loadSave();
+      if (cancelled) return;
+      if (phase === 'idle') {
+        setPendingSave(save);
+        if (!save) startRun();
+      } else if (save && save.seed === seed && save.level === level) {
+        restoreDataRef.current = deserializeRun(save);
+      }
+      setBootstrapped(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Construir el game store cuando cambia el puzzle (inicio, nextLevel o restore).
+  // Gated en `bootstrapped` para que el re-montaje recupere el tablero del save.
+  useEffect(() => {
+    if (!bootstrapped || !puzzle || !rng) return;
+    const restore = restoreDataRef.current;
+    restoreDataRef.current = null;
+    const store = createSudokuGameStore({
+      puzzle,
+      rng,
+      initialHints: restore ? restore.hintsRemaining : hints,
+      initialSilverCells: restore ? restore.silverRemaining : silverCells,
+      initialGoldenCells: restore ? restore.goldenRemaining : goldenCells,
+      initialBoard: restore?.board,
+      initialNotes: restore?.notesByCell,
+      initialErrorIndices: restore?.errorIndices,
+      callbacks: {
+        onCellCorrect: (idx) => onCellCorrect(idx),
+        onCellIncorrect: () => onCellIncorrect(),
+        onBoxComplete: (boxIdx) => onBoxComplete(boxIdx),
+        onPuzzleComplete: () => onPuzzleComplete(),
+      },
+    });
+    setGameStore(store);
+  }, [puzzle, bootstrapped]);
+
+  // Persistir highscore + monedas y limpiar el save al terminar la run. El flag
+  // `settled` vive en el run store (singleton), así que sobrevive a un re-montaje
+  // de la ruta y evita canjear las monedas dos veces.
+  useEffect(() => {
+    if (phase !== 'gameover' || settled) return;
+    markSettled();
+    void clearSave();
+    if (!user) return;
     Promise.all([
       updateHighscoreIfBetter(user.uid, score),
       addCoins(user.uid, coinsEarned),
-    ]).then(() => {
-      qc.invalidateQueries({ queryKey: userKeys.profile(user.uid) });
-    }).catch(console.warn);
+    ])
+      .then(() => {
+        qc.invalidateQueries({ queryKey: userKeys.profile(user.uid) });
+      })
+      .catch(console.warn);
   }, [phase]);
 
-  const gameStoreRef = useRef<ReturnType<typeof createSudokuGameStore> | null>(null);
+  // Sync power-ups otorgados mid-run hacia el game store.
+  useEffect(() => {
+    if (!gameStore) return;
+    const diff = hints - gameStore.getState().hintsRemaining;
+    if (diff > 0) gameStore.getState().grantHints(diff);
+  }, [hints, gameStore]);
 
   useEffect(() => {
-    if (puzzle && rng) {
-      gameStoreRef.current = createSudokuGameStore({
-        puzzle,
-        rng,
-        initialHints: hints,
-        initialSilverCells: silverCells,
-        initialGoldenCells: goldenCells,
-        callbacks: {
-          onCellCorrect: (idx) => onCellCorrect(idx),
-          onCellIncorrect: () => onCellIncorrect(),
-          onBoxComplete: (boxIdx) => onBoxComplete(boxIdx),
-          onPuzzleComplete: () => onPuzzleComplete(),
-        },
-      });
-    }
-  }, [puzzle]);
-
-  // Sync power-ups into the game store when granted mid-run.
-  useEffect(() => {
-    const store = gameStoreRef.current;
-    if (!store) return;
-    const diff = hints - store.getState().hintsRemaining;
-    if (diff > 0) store.getState().grantHints(diff);
-  }, [hints]);
+    if (!gameStore) return;
+    const diff = silverCells - gameStore.getState().silverRemaining;
+    if (diff > 0) gameStore.getState().grantSilverCells(diff);
+  }, [silverCells, gameStore]);
 
   useEffect(() => {
-    const store = gameStoreRef.current;
-    if (!store) return;
-    const diff = silverCells - store.getState().silverRemaining;
-    if (diff > 0) store.getState().grantSilverCells(diff);
-  }, [silverCells]);
-
-  useEffect(() => {
-    const store = gameStoreRef.current;
-    if (!store) return;
-    const diff = goldenCells - store.getState().goldenRemaining;
-    if (diff > 0) store.getState().grantGoldenCells(diff);
-  }, [goldenCells]);
+    if (!gameStore) return;
+    const diff = goldenCells - gameStore.getState().goldenRemaining;
+    if (diff > 0) gameStore.getState().grantGoldenCells(diff);
+  }, [goldenCells, gameStore]);
 
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -97,19 +144,64 @@ export function SudolocoScreen() {
     }
   }, [phase, rng, level]);
 
+  const [activeMicrogame, setActiveMicrogame] = useState<Microgame | null>(null);
   useEffect(() => {
-    if (phase === 'playing' && level === 1) savedRef.current = false;
-  }, [phase, level]);
-
-  useEffect(() => {
-    if (phase === 'idle') {
-      startRun();
+    if (phase === 'microgame' && rng) {
+      // discoveredIds: la persistencia de descubiertos llega con el menú (fuera de alcance).
+      const picked = pickMicrogame(listMicrogames(), level, new Set(), rng);
+      setActiveMicrogame(picked);
+      // Sin microjuego elegible: salir para no dejar la run atascada en 'microgame'.
+      if (!picked) exitMicrogame();
+    } else {
+      setActiveMicrogame(null);
     }
-  }, []);
+  }, [phase, rng, level, exitMicrogame]);
 
-  void router;
+  const handleContinue = () => {
+    if (!pendingSave) return;
+    const restored = deserializeRun(pendingSave);
+    restoreDataRef.current = restored;
+    setPendingSave(null);
+    restoreRun(restored);
+  };
 
+  const handleNewGame = () => {
+    void clearSave();
+    setPendingSave(null);
+    startRun();
+  };
+
+  // Guardado manual desde la pausa (además del autosave). Muestra confirmación.
+  const handleManualSave = () => {
+    if (!gameStore) return;
+    snapshotSave(gameStore);
+    setSavedFlash(true);
+  };
+
+  const handleResume = () => {
+    setSavedFlash(false);
+    resumeRun();
+  };
+
+  // Pantalla de reanudación (hay save y aún no se decidió).
   if (phase === 'idle') {
+    if (pendingSave) {
+      return (
+        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+          <View style={styles.center}>
+            <Text style={styles.title}>Partida en curso</Text>
+            <Text style={styles.finalScore}>Nivel {pendingSave.level}</Text>
+            <Text style={styles.finalScore}>Score: {pendingSave.score.toLocaleString()}</Text>
+            <Pressable style={styles.startBtn} onPress={handleContinue}>
+              <Text style={styles.startBtnText}>Continuar</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryBtn} onPress={handleNewGame}>
+              <Text style={styles.secondaryBtnText}>Empezar de nuevo</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      );
+    }
     return null;
   }
 
@@ -121,7 +213,13 @@ export function SudolocoScreen() {
           <Text style={styles.finalScore}>Score: {score.toLocaleString()}</Text>
           <Text style={styles.finalScore}>Nivel: {level}</Text>
           <Text style={styles.coins}>+{coinsEarned} monedas</Text>
-          <Pressable style={styles.startBtn} onPress={() => resetRun()}>
+          <Pressable
+            style={styles.startBtn}
+            onPress={() => {
+              resetRun();
+              router.replace('/(tabs)/home');
+            }}
+          >
             <Text style={styles.startBtnText}>Volver al menú</Text>
           </Pressable>
         </View>
@@ -143,14 +241,14 @@ export function SudolocoScreen() {
     );
   }
 
-  if (!gameStoreRef.current) return null;
+  if (!gameStore) return null;
 
   const urgency = Math.max(0, Math.min(1, (30 - timeRemaining) / 30));
 
   return (
     <View style={styles.safe}>
       <SudokuGame
-        store={gameStoreRef.current}
+        store={gameStore}
         pack={numbersPack}
         showHintButton={hints > 0}
         showSilverButton={silverCells > 0}
@@ -172,30 +270,30 @@ export function SudolocoScreen() {
       {phase === 'paused' && (
         <View style={styles.overlay} pointerEvents="auto">
           <Text style={styles.overlayTitle}>⏸️ Pausa</Text>
-          <Pressable style={styles.startBtn} onPress={resumeRun}>
+          <Pressable style={styles.startBtn} onPress={handleResume}>
             <Text style={styles.startBtnText}>Continuar</Text>
           </Pressable>
+          <Pressable style={styles.secondaryBtn} onPress={handleManualSave}>
+            <Text style={styles.secondaryBtnText}>
+              {savedFlash ? '¡Guardado! ✓' : 'Guardar'}
+            </Text>
+          </Pressable>
+          <Text style={styles.autosaveHint}>Tu progreso se guarda automáticamente</Text>
         </View>
       )}
 
-      {phase === 'microgame' && (
-        <View style={styles.overlay} pointerEvents="auto">
-          <Text style={styles.overlayTitle}>¡Microjuego!</Text>
-          <Text style={styles.bonusText}>⏱️ Tiempo bonus garantizado</Text>
-          {microgameReward && (
-            <Text style={styles.rewardText}>{rewardLabel(microgameReward)}</Text>
-          )}
-          <Pressable
-            style={styles.startBtn}
-            onPress={() => {
-              grantReward({ kind: 'time_boost' });
-              if (microgameReward) grantReward(microgameReward);
-              exitMicrogame();
-            }}
-          >
-            <Text style={styles.startBtnText}>Continuar</Text>
-          </Pressable>
-        </View>
+      {phase === 'microgame' && activeMicrogame && rng && (
+        <MicrogameRunner
+          game={activeMicrogame}
+          difficulty={levelToDifficulty(level)}
+          rng={rng}
+          onFinish={(result) => {
+            if (result === 'win' && microgameReward) {
+              grantReward(microgameReward);
+            }
+            exitMicrogame();
+          }}
+        />
       )}
     </View>
   );
@@ -238,6 +336,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.primary,
   },
   startBtnText: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
+  secondaryBtn: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.brand.primary,
+  },
+  secondaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.brand.primary },
+  autosaveHint: { fontSize: 12, color: colors.text.secondary, opacity: 0.8, marginTop: 4 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -248,15 +355,3 @@ const styles = StyleSheet.create({
   overlayTitle: { fontSize: 28, fontWeight: '900', color: colors.text.primary },
   rewardText: { fontSize: 22, fontWeight: '700', color: colors.brand.accent },
 });
-
-function rewardLabel(reward: Reward): string {
-  switch (reward.kind) {
-    case 'time_boost': return '⏱️ ¡Tiempo bonus!';
-    case 'hint': return '🔍 ¡Una pista!';
-    case 'silver_cell': return '🥈 ¡Casilla plateada!';
-    case 'golden_cell': return '🥇 ¡Casilla dorada!';
-    case 'life': return '♥ ¡Vida extra!';
-    case 'crystal_heart': return '◇ ¡Corazón de cristal!';
-    case 'none': return '';
-  }
-}

@@ -21,3 +21,7 @@ export function levelConfig(level: number): LevelConfig {
 
   return { difficulty, secsPerCell };
 }
+
+export function buildPuzzleSeed(runSeed: string, level: number): string {
+  return `${runSeed}:${level}`;
+}
