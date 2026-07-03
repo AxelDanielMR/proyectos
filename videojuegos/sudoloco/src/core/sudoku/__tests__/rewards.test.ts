@@ -9,7 +9,14 @@ describe('rollReward', () => {
     rng = createRng('test-seed');
   });
 
-  const VALID_KINDS = ['time_boost', 'hint', 'silver_cell', 'golden_cell', 'life', 'crystal_heart'];
+  const VALID_KINDS = [
+    'time_boost',
+    'hint',
+    'silver_cell',
+    'golden_cell',
+    'life',
+    'crystal_heart',
+  ];
 
   it('retorna un Reward válido (sin none)', () => {
     const reward = rollReward(1, rng);
@@ -41,11 +48,13 @@ describe('rollReward', () => {
   it('golden_cell es más probable en nivel alto que en nivel bajo', () => {
     let earlyCount = 0;
     for (let i = 0; i < 200; i++) {
-      if (rollReward(1, createRng(`early-${i}`)).kind === 'golden_cell') earlyCount++;
+      if (rollReward(1, createRng(`early-${i}`)).kind === 'golden_cell')
+        earlyCount++;
     }
     let lateCount = 0;
     for (let i = 0; i < 200; i++) {
-      if (rollReward(20, createRng(`late-${i}`)).kind === 'golden_cell') lateCount++;
+      if (rollReward(20, createRng(`late-${i}`)).kind === 'golden_cell')
+        lateCount++;
     }
     expect(lateCount).toBeGreaterThan(earlyCount);
   });

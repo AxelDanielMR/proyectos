@@ -53,22 +53,30 @@ function interpolateWeights(level: number): RewardWeights {
     silver_cell: early.silver_cell + (late.silver_cell - early.silver_cell) * t,
     golden_cell: early.golden_cell + (late.golden_cell - early.golden_cell) * t,
     life: early.life + (late.life - early.life) * t,
-    crystal_heart: early.crystal_heart + (late.crystal_heart - early.crystal_heart) * t,
+    crystal_heart:
+      early.crystal_heart + (late.crystal_heart - early.crystal_heart) * t,
   };
 }
 
 export function rollReward(level: number, rng: Rng): Reward {
-  const w = interpolateWeights(level);
+  const weights = interpolateWeights(level);
   const total =
-    w.time_boost + w.hint + w.silver_cell + w.golden_cell + w.life + w.crystal_heart;
+    weights.time_boost +
+    weights.hint +
+    weights.silver_cell +
+    weights.golden_cell +
+    weights.life +
+    weights.crystal_heart;
   const roll = rng() * total;
 
   let cumulative = 0;
 
-  if ((cumulative += w.time_boost) >= roll) return { kind: 'time_boost' };
-  if ((cumulative += w.hint) >= roll) return { kind: 'hint' };
-  if ((cumulative += w.silver_cell) >= roll) return { kind: 'silver_cell' };
-  if ((cumulative += w.golden_cell) >= roll) return { kind: 'golden_cell' };
-  if ((cumulative += w.life) >= roll) return { kind: 'life' };
+  if ((cumulative += weights.time_boost) >= roll) return { kind: 'time_boost' };
+  if ((cumulative += weights.hint) >= roll) return { kind: 'hint' };
+  if ((cumulative += weights.silver_cell) >= roll)
+    return { kind: 'silver_cell' };
+  if ((cumulative += weights.golden_cell) >= roll)
+    return { kind: 'golden_cell' };
+  if ((cumulative += weights.life) >= roll) return { kind: 'life' };
   return { kind: 'crystal_heart' };
 }
