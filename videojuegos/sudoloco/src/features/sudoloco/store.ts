@@ -193,8 +193,6 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
       case 'crystal_heart':
         set((s) => ({ crystalHearts: s.crystalHearts + 1 }));
         break;
-      case 'none':
-        break;
     }
   },
 
