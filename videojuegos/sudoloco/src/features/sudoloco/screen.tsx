@@ -32,7 +32,7 @@ export function SudolocoScreen() {
     phase, level, lives, crystalHearts, timeRemaining, score,
     hints, silverCells, goldenCells, coinsEarned, puzzle, rng, seed,
     startRun, restoreRun, onCellCorrect, onCellIncorrect, onBoxComplete,
-    onPuzzleComplete, tick, nextLevel, exitMicrogame, grantReward,
+    onPuzzleComplete, tick, nextLevel, exitMicrogame, pendingReward, beginReveal, finishReveal,
     resetRun, pauseRun, resumeRun, settled, markSettled,
   } = useSudolocoStore();
 
@@ -146,7 +146,6 @@ export function SudolocoScreen() {
   }, [phase, rng, level]);
 
   const [activeMicrogame, setActiveMicrogame] = useState<Microgame | null>(null);
-  const [revealReward, setRevealReward] = useState<Reward | null>(null);
   useEffect(() => {
     if (phase === 'microgame' && rng) {
       // discoveredIds: la persistencia de descubiertos llega con el menú (fuera de alcance).
@@ -284,16 +283,16 @@ export function SudolocoScreen() {
         </View>
       )}
 
-      {phase === 'microgame' && activeMicrogame && rng && !revealReward && (
+      {phase === 'microgame' && activeMicrogame && rng && !pendingReward && (
         <MicrogameRunner
           game={activeMicrogame}
           difficulty={levelToDifficulty(level)}
           rng={rng}
           onFinish={(result) => {
-            // Victoria con premio: arranca el overlay del objeto; el premio se
-            // otorga al terminar su animación (onDone). Derrota: salir directo.
+            // Victoria con premio: entra en la fase de revelado (el premio se
+            // otorga al terminar la animación). Derrota: salir directo.
             if (result === 'win' && microgameReward) {
-              setRevealReward(microgameReward);
+              beginReveal(microgameReward);
             } else {
               exitMicrogame();
             }
@@ -301,15 +300,8 @@ export function SudolocoScreen() {
         />
       )}
 
-      {revealReward && (
-        <RewardReveal
-          reward={revealReward}
-          onDone={() => {
-            grantReward(revealReward);
-            setRevealReward(null);
-            exitMicrogame();
-          }}
-        />
+      {phase === 'microgame' && pendingReward && (
+        <RewardReveal reward={pendingReward} onDone={finishReveal} />
       )}
     </View>
   );

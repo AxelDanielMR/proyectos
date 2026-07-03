@@ -3,6 +3,7 @@ import { createRng, generate, levelConfig, INITIAL_TIME_S, buildPuzzleSeed } fro
 import type { Puzzle } from '@core/sudoku';
 import { computeRunReward } from '@core/sudoku';
 import type { Rng } from '@core/sudoku';
+import type { Reward } from '@core/sudoku';
 import type { RestoredRun } from './save';
 
 export type RunPhase = 'idle' | 'playing' | 'paused' | 'microgame' | 'between_levels' | 'gameover';
@@ -20,6 +21,7 @@ export interface RunState {
   goldenCells: number;
   coinsEarned: number;
   settled: boolean; // true una vez canjeadas monedas/highscore al terminar la run
+  pendingReward: Reward | null; // premio ganado en microjuego, en curso de revelarse (animación RewardReveal)
   puzzle: Puzzle | null;
   rng: Rng | null;
   seed: string;
@@ -36,7 +38,9 @@ interface RunActions {
   tick(): void;
   pauseRun(): void;
   resumeRun(): void;
-  grantReward(reward: import('@core/sudoku').Reward): void;
+  grantReward(reward: Reward): void;
+  beginReveal(reward: Reward): void;
+  finishReveal(): void;
   exitMicrogame(): void;
   nextLevel(): void;
   resetRun(): void;
@@ -56,6 +60,7 @@ const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   goldenCells: 0,
   coinsEarned: 0,
   settled: false,
+  pendingReward: null,
   seed: '',
 };
 
@@ -89,6 +94,7 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
       goldenCells: r.goldenRemaining,
       coinsEarned: 0,
       settled: false,
+      pendingReward: null,
       seed: r.seed,
       puzzle: r.puzzle,
       rng: r.rng,
@@ -194,6 +200,19 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
         set((s) => ({ crystalHearts: s.crystalHearts + 1 }));
         break;
     }
+  },
+
+  beginReveal(reward) {
+    // Victoria de microjuego: entra en la fase de revelado. La fase sigue en
+    // 'microgame'; RewardReveal (gated en phase==='microgame') se monta y anima.
+    set({ pendingReward: reward });
+  },
+
+  finishReveal() {
+    // Fin de la animación del objeto: otorga el premio y vuelve a jugar.
+    const { pendingReward } = get();
+    if (pendingReward) get().grantReward(pendingReward);
+    set({ pendingReward: null, phase: 'playing' });
   },
 
   exitMicrogame() {
