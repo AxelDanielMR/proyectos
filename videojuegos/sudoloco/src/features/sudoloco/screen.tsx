@@ -21,6 +21,7 @@ import { deserializeRun, type SavedRun, type RestoredRun } from './save';
 import { useAutoSave, snapshotSave } from './useAutoSave';
 import { MicrogameRunner, listMicrogames, pickMicrogame, levelToDifficulty } from '@features/microjuegos';
 import type { Microgame } from '@features/microjuegos';
+import { RewardReveal } from './ui/RewardReveal';
 
 export function SudolocoScreen() {
   const router = useRouter();
@@ -145,6 +146,7 @@ export function SudolocoScreen() {
   }, [phase, rng, level]);
 
   const [activeMicrogame, setActiveMicrogame] = useState<Microgame | null>(null);
+  const [revealReward, setRevealReward] = useState<Reward | null>(null);
   useEffect(() => {
     if (phase === 'microgame' && rng) {
       // discoveredIds: la persistencia de descubiertos llega con el menú (fuera de alcance).
@@ -282,15 +284,29 @@ export function SudolocoScreen() {
         </View>
       )}
 
-      {phase === 'microgame' && activeMicrogame && rng && (
+      {phase === 'microgame' && activeMicrogame && rng && !revealReward && (
         <MicrogameRunner
           game={activeMicrogame}
           difficulty={levelToDifficulty(level)}
           rng={rng}
           onFinish={(result) => {
+            // Victoria con premio: arranca el overlay del objeto; el premio se
+            // otorga al terminar su animación (onDone). Derrota: salir directo.
             if (result === 'win' && microgameReward) {
-              grantReward(microgameReward);
+              setRevealReward(microgameReward);
+            } else {
+              exitMicrogame();
             }
+          }}
+        />
+      )}
+
+      {revealReward && (
+        <RewardReveal
+          reward={revealReward}
+          onDone={() => {
+            grantReward(revealReward);
+            setRevealReward(null);
             exitMicrogame();
           }}
         />
