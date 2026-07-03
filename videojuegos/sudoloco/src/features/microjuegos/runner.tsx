@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { MicrogameStage } from './kit/primitives/MicrogameStage';
@@ -20,6 +20,15 @@ export function MicrogameRunner({
 }) {
   const [result, setResult] = useState<MicrogameResult | null>(null);
 
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
+
+  // En victoria el remate lo hace el overlay de la pantalla (RewardReveal): salimos
+  // de inmediato, sin mostrar la cara feliz. La derrota sí conserva VerdictReaction.
+  useEffect(() => {
+    if (result === 'win') onFinishRef.current('win');
+  }, [result]);
+
   const handleResult = (r: MicrogameResult) => {
     setResult((prev) => prev ?? r); // primer resultado gana
   };
@@ -39,8 +48,8 @@ export function MicrogameRunner({
 
       <Game difficulty={difficulty} rng={rng} onResult={handleResult} />
 
-      {result !== null && (
-        <VerdictReaction result={result} onDone={() => onFinish(result)} />
+      {result === 'lose' && (
+        <VerdictReaction result="lose" onDone={() => onFinish('lose')} />
       )}
     </MicrogameStage>
   );
