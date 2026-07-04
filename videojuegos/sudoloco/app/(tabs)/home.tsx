@@ -41,6 +41,10 @@ export default function HomeScreen() {
     if (key === 'sudoloco') router.push('/sudoloco');
   };
 
+  const handleSmallPress = (key: SmallKey) => {
+    if (key === 'profile') router.push('/(tabs)/perfil');
+  };
+
   const primaryButtons: { key: ModeKey; source: ImageSourcePropType }[] = [
     { key: 'sudoloco', source: require('../../assets/buttons/sudoloco.png') },
     { key: 'versus', source: require('../../assets/buttons/versus.png') },
@@ -128,6 +132,7 @@ export default function HomeScreen() {
               {smallButtons.map(({ key, source }) => (
                 <Pressable
                   key={key}
+                  onPress={() => handleSmallPress(key)}
                   android_ripple={{ color: '#00000018' }}
                   style={({ pressed }) => ({
                     width: SMALL_SIZE,

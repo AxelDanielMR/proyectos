@@ -10,15 +10,11 @@ interface LivesDisplayProps {
 }
 
 export const LivesDisplay = React.memo(function LivesDisplay({ lives, crystalHearts }: LivesDisplayProps) {
+  // Vidas dinámicas: se dibuja un corazón por vida actual (sin tope de 3).
   return (
     <View style={styles.livesRow}>
-      {Array.from({ length: 3 }, (_, i) => (
-        <Image
-          key={i}
-          source={actionIcons.heart}
-          style={[styles.heart, i >= lives && styles.heartLost]}
-          resizeMode="contain"
-        />
+      {Array.from({ length: Math.max(0, lives) }, (_, i) => (
+        <Image key={i} source={actionIcons.heart} style={styles.heart} resizeMode="contain" />
       ))}
       {Array.from({ length: crystalHearts }, (_, i) => (
         <Image key={`c-${i}`} source={actionIcons.frozenHeart} style={styles.crystalHeart} resizeMode="contain" />
@@ -67,9 +63,6 @@ const styles = StyleSheet.create({
   heart: {
     width: 24,
     height: 24,
-  },
-  heartLost: {
-    opacity: 0.25,
   },
   crystalHeart: {
     width: 22,

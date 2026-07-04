@@ -19,8 +19,8 @@ import { userKeys } from '@features/auth';
 import { loadSave, clearSave } from './save.storage';
 import { deserializeRun, type SavedRun, type RestoredRun } from './save';
 import { useAutoSave, snapshotSave } from './useAutoSave';
-import { MicrogameRunner, listMicrogames, pickMicrogame, levelToDifficulty } from '@features/microjuegos';
-import type { Microgame } from '@features/microjuegos';
+import { MicrogameRunner, listMicrogames, pickMicrogame, levelToDifficulty } from '@features/microgames';
+import type { Microgame } from '@features/microgames';
 import { RewardReveal } from './ui/RewardReveal';
 
 export function SudolocoScreen() {
@@ -32,7 +32,7 @@ export function SudolocoScreen() {
     phase, level, lives, crystalHearts, timeRemaining, score,
     hints, silverCells, goldenCells, coinsEarned, puzzle, rng, seed,
     startRun, restoreRun, onCellCorrect, onCellIncorrect, onBoxComplete,
-    onPuzzleComplete, tick, nextLevel, exitMicrogame, pendingReward, beginReveal, finishReveal,
+    onPuzzleComplete, tick, nextLevel, exitMicrogame, loseMicrogame, pendingReward, beginReveal, finishReveal,
     resetRun, pauseRun, resumeRun, settled, markSettled,
   } = useSudolocoStore();
 
@@ -290,9 +290,11 @@ export function SudolocoScreen() {
           rng={rng}
           onFinish={(result) => {
             // Victoria con premio: entra en la fase de revelado (el premio se
-            // otorga al terminar la animación). Derrota: salir directo.
+            // otorga al terminar la animación). Derrota: consolación de ½ tiempo.
             if (result === 'win' && microgameReward) {
               beginReveal(microgameReward);
+            } else if (result === 'lose') {
+              loseMicrogame();
             } else {
               exitMicrogame();
             }

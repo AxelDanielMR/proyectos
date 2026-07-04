@@ -4,10 +4,10 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSequence,
-  withSpring,
   withDelay,
   withTiming,
   runOnJS,
+  Easing,
 } from 'react-native-reanimated';
 import type { MicrogameResult } from '../../types';
 
@@ -25,10 +25,12 @@ export function VerdictReaction({
   const fire = () => doneRef.current();
 
   useEffect(() => {
+    // Pop rápido con leve rebote + retención corta. Evita el resorte poco
+    // amortiguado anterior, que tardaba ~2s en asentarse antes de cerrar.
     scale.value = withSequence(
-      withSpring(1, { damping: 8 }),
+      withTiming(1, { duration: 200, easing: Easing.out(Easing.back(2)) }),
       withDelay(
-        700,
+        400,
         withTiming(1, { duration: 1 }, (finished) => {
           'worklet';
           if (finished) runOnJS(fire)();

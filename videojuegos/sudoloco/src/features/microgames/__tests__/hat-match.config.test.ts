@@ -1,11 +1,11 @@
-import { buildConfig } from '../games/pon-el-sombrero/config';
+import { buildConfig } from '../games/hat-match/config';
 
 const seq = (values: number[]) => {
   let i = 0;
   return () => values[i++ % values.length] ?? 0;
 };
 
-describe('pon-el-sombrero buildConfig', () => {
+describe('hat-match buildConfig', () => {
   it('has 3 characters and 1 hat at difficulty 0', () => {
     const cfg = buildConfig(0, seq([0.1, 0.2, 0.3, 0.4, 0.5]));
     expect(cfg.targets).toHaveLength(3);

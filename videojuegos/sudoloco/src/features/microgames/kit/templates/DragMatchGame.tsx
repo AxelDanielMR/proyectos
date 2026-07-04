@@ -1,5 +1,5 @@
 import React, { useContext, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import { StageSizeContext } from '../primitives/MicrogameStage';
 import { Draggable } from '../primitives/Draggable';
 import { resolveDrop, isMatchCorrect, type DropTargetHit } from './dragMatch.logic';
@@ -24,7 +24,16 @@ export interface DragMatchConfig {
 const ENTITY = 64;
 
 function VisualView({ visual, size }: { visual: Visual; size: number }) {
-  // Placeholder: emoji. El arte final usará <Image source={visual.source} />.
+  if (visual.source) {
+    return (
+      <Image
+        source={visual.source}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+        onError={(e) => console.warn('Image load error:', e)}
+      />
+    );
+  }
   return <Text style={{ fontSize: size * 0.7 }}>{visual.emoji ?? '❓'}</Text>;
 }
 

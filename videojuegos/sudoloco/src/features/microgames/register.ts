@@ -1,7 +1,7 @@
 import { registerMicrogame } from './registry';
-import { ponElSombrero } from './games/pon-el-sombrero';
+import { hatMatch } from './games/hat-match';
 import { homeRun } from './games/home-run';
 
 // Agregar un microjuego = importar arriba + una línea aquí.
-registerMicrogame(ponElSombrero);
+registerMicrogame(hatMatch);
 registerMicrogame(homeRun);

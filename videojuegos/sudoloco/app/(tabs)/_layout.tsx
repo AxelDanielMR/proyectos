@@ -12,7 +12,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: t('tabs.home') }} />
-      <Tabs.Screen name="microjuegos" options={{ title: t('tabs.microgames') }} />
+      <Tabs.Screen name="microgames" options={{ title: t('tabs.microgames') }} />
       <Tabs.Screen name="cuentos" options={{ title: t('tabs.stories') }} />
       <Tabs.Screen name="perfil" options={{ title: t('tabs.profile') }} />
     </Tabs>

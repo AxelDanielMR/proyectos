@@ -42,6 +42,7 @@ interface RunActions {
   beginReveal(reward: Reward): void;
   finishReveal(): void;
   exitMicrogame(): void;
+  loseMicrogame(): void;
   nextLevel(): void;
   resetRun(): void;
   _finishRun(): void;
@@ -63,6 +64,11 @@ const INITIAL_STATE: Omit<RunState, 'puzzle' | 'rng'> = {
   pendingReward: null,
   seed: '',
 };
+
+// Bonus de tiempo del microjuego (segundos), escalado con la dificultad del nivel.
+function timeBoostSeconds(level: number): number {
+  return 20 + Math.floor(level / 2);
+}
 
 export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
   ...INITIAL_STATE,
@@ -179,9 +185,7 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     switch (reward.kind) {
       case 'time_boost': {
         const { level } = get();
-        // Bonus seconds: 15 + (level / 2), escalado con dificultad
-        const bonusSeconds = 15 + Math.floor(level / 2);
-        set((s) => ({ timeRemaining: s.timeRemaining + bonusSeconds }));
+        set((s) => ({ timeRemaining: s.timeRemaining + timeBoostSeconds(level) }));
         break;
       }
       case 'hint':
@@ -205,11 +209,15 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
   beginReveal(reward) {
     // Victoria de microjuego: entra en la fase de revelado. La fase sigue en
     // 'microgame'; RewardReveal (gated en phase==='microgame') se monta y anima.
+    if (get().phase !== 'microgame') return;
     set({ pendingReward: reward });
   },
 
   finishReveal() {
-    // Fin de la animación del objeto: otorga el premio y vuelve a jugar.
+    // Solo otorgar/volver a jugar si seguimos en la fase de microjuego. Evita que
+    // un onDone que se dispara justo tras pausar reactive el juego (recurrencia del
+    // bug de pausa). Al reanudar, phase vuelve a 'microgame' y el reveal reproduce.
+    if (get().phase !== 'microgame') return;
     const { pendingReward } = get();
     if (pendingReward) get().grantReward(pendingReward);
     set({ pendingReward: null, phase: 'playing' });
@@ -217,6 +225,14 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
 
   exitMicrogame() {
     set({ phase: 'playing' });
+  },
+
+  loseMicrogame() {
+    // Derrota de microjuego: consolación de ½ del bonus de tiempo estándar.
+    if (get().phase !== 'microgame') return;
+    const { level } = get();
+    const consolation = Math.floor(timeBoostSeconds(level) / 2);
+    set((s) => ({ timeRemaining: s.timeRemaining + consolation, phase: 'playing' }));
   },
 
   nextLevel() {
