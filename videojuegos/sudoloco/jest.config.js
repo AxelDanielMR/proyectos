@@ -36,6 +36,7 @@ module.exports = {
       preset: 'ts-jest',
       testEnvironment: 'node',
       moduleNameMapper: {
+        '\\.(png|jpg|jpeg|gif|webp)$': '<rootDir>/jest/assetMock.js',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^@core/(.*)$': '<rootDir>/src/core/$1',
         '^@features/(.*)$': '<rootDir>/src/features/$1',

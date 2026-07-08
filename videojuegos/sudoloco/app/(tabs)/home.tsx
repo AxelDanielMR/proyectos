@@ -39,6 +39,7 @@ export default function HomeScreen() {
 
   const handlePress = (key: ModeKey) => {
     if (key === 'sudoloco') router.push('/sudoloco');
+    if (key === 'biblio') router.push('/biblioteca');
   };
 
   const handleSmallPress = (key: SmallKey) => {

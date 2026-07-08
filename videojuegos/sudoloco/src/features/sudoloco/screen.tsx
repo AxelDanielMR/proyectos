@@ -14,7 +14,7 @@ import type { Reward } from '@core/sudoku';
 import { colors } from '@theme/colors';
 import { useAuthStore } from '@features/auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { updateHighscoreIfBetter, addCoins } from '@services/firebase/users.repo';
+import { settleRun } from '@services/firebase/users.repo';
 import { userKeys } from '@features/auth';
 import { loadSave, clearSave } from './save.storage';
 import { deserializeRun, type SavedRun, type RestoredRun } from './save';
@@ -101,14 +101,15 @@ export function SudolocoScreen() {
     markSettled();
     void clearSave();
     if (!user) return;
-    Promise.all([
-      updateHighscoreIfBetter(user.uid, score),
-      addCoins(user.uid, coinsEarned),
-    ])
+    settleRun(
+      user.uid,
+      { email: user.email ?? '', displayName: user.displayName ?? '' },
+      { score, coins: coinsEarned },
+    )
       .then(() => {
         qc.invalidateQueries({ queryKey: userKeys.profile(user.uid) });
       })
-      .catch(console.warn);
+      .catch((err) => console.warn('[sudoloco] settleRun falló:', err));
   }, [phase]);
 
   // Sync power-ups otorgados mid-run hacia el game store.

@@ -162,6 +162,7 @@ npm test               # Jest (solo core, sin RN)
 ## Cómo trabajar en este repo
 
 - **Antes de implementar algo nuevo**, verifica si la lógica pertenece a `core/` (sin deps de RN/Firebase) o a una feature. Si es lógica de sudoku, va a `core/` con tests Jest.
+- **Microjuegos**: antes de tocar `src/features/microgames/`, lee su guía [src/features/microgames/README.md](src/features/microgames/README.md) (contrato, registro, instrucciones animadas, assets).
 - **Tests primero para `core/`.** Cualquier código en `src/core/sudoku/` debe tener tests en `__tests__/`.
 - **No crear archivos de documentación** (planes, resúmenes, decisiones) salvo que el usuario lo pida explícitamente. `ARCHITECTURE.md` es el documento vivo del proyecto.
 - **No hacer commits** salvo que el usuario lo pida explícitamente.

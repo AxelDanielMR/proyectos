@@ -66,7 +66,22 @@
   "microgames": {
     "title": "¡Microjuego!",
     "ready": "¿Listo?",
-    "ponElSombrero": "Pon el sombrero",
-    "homeRun": "Home run"
+    "hatMatch": "Pon el sombrero",
+    "homeRun": "Home run",
+    "fishing": "¡A pescar!"
+  },
+  "biblioteca": {
+    "title": "Biblioteca",
+    "microgamesSection": "Microjuegos",
+    "win": "¡Ganaste!",
+    "lose": "Fallaste...",
+    "playAgain": "Jugar otra vez",
+    "exit": "Salir",
+    "difficulty": { "easy": "Fácil", "medium": "Media", "hard": "Difícil" },
+    "category": {
+      "drag-match": "Arrastrar",
+      "tap-timing": "Timing",
+      "tap-spam": "Machacar"
+    }
   }
 }

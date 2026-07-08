@@ -30,7 +30,13 @@ export function buildConfig(difficulty: number, rng: Rng): DragMatchConfig {
   const withHats: CharacterAsset[] = shuffle(chosen, rng).slice(0, hatCount);
 
   return {
-    targets: chosen.map((c) => ({ id: c.id, visual: c.character })),
+    targets: chosen.map((c) => ({
+      id: c.id,
+      visual: c.character,
+      winFrames: c.win,
+      winWithItemFrames: c.winWithHat,
+      loseFrames: c.lose,
+    })),
     draggables: withHats.map((c) => ({ id: `hat-${c.id}`, targetId: c.id, visual: c.hat })),
   };
 }

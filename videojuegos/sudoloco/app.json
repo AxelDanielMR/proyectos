@@ -4,6 +4,9 @@
     "slug": "sudoloco",
     "scheme": "sudoloco",
     "version": "1.0.0",
+    "cli": {
+      "appVersionSource": "nativeCode"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -39,6 +42,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f6fcae35-f637-4f5d-b461-040c06c8b23f"
+      }
+    },
+    "owner": "jardino"
   }
 }

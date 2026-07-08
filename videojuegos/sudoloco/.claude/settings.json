@@ -4,7 +4,18 @@
       "PowerShell(npx expo install react-native-gesture-handler)",
       "PowerShell(npm test -- \"dragMatch|tapTiming\" 2>&1)",
       "PowerShell(npm run lint)",
-      "PowerShell(node scripts/scale-pixelart.js 64)"
+      "PowerShell(node scripts/scale-pixelart.js 64)",
+      "PowerShell(eas --version)",
+      "PowerShell(eas login)",
+      "PowerShell($env:EAS_BUILD_NO_EXPO_GO_WARNING = 'true'; cd \"C:\\\\Users\\\\axel_\\\\Documents\\\\proyectos\\\\videojuegos\\\\sudoloco\"; eas build --platform android --non-interactive 2>&1)",
+      "PowerShell(Test-Path \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\"; $env:ANDROID_HOME)",
+      "PowerShell(git -C \"C:\\\\Users\\\\axel_\\\\Documents\\\\proyectos\\\\videojuegos\\\\sudoloco\" status --porcelain src/features/microgames)",
+      "PowerShell(git -C \"C:\\\\Users\\\\axel_\\\\Documents\\\\proyectos\\\\videojuegos\\\\sudoloco\" ls-files src/features/microgames/games/fishing src/features/microgames/__tests__)",
+      "PowerShell(npx jest src/features/microgames/__tests__/fishing.logic.test.ts)",
+      "PowerShell(npm run typecheck)",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).dependencies['expo-asset'] || 'not direct dep'\\)\")",
+      "Bash(node -e \"try{console.log\\(require.resolve\\('expo-asset/package.json'\\)\\)}catch\\(e\\){console.log\\('NOT INSTALLED: '+e.message\\)}\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

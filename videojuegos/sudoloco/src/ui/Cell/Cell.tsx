@@ -99,7 +99,7 @@ function NotesGrid({ notes, pack }: { notes: ReadonlySet<number>; pack: SymbolPa
             return (
               <View key={n} style={styles.noteCell}>
                 {notes.has(n) && item != null ? (
-                  <View style={{ opacity: 0.45 }}>
+                  <View style={{ opacity: 0.85 }}>
                     <SymbolDisplay item={item} color={colors.text.muted} tintable={pack.tintable} small />
                   </View>
                 ) : null}

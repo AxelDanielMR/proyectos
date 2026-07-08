@@ -28,6 +28,21 @@ export interface MicrogameProps {
   rng: Rng;
   /** El juego reporta victoria/derrota anticipada. El timeout lo maneja el runner. */
   onResult: (result: MicrogameResult) => void;
+  /**
+   * El juego ya decidió el resultado y está reproduciendo su propia animación
+   * antes de llamar `onResult`. Congela el timer del runner para que un timeout
+   * no pise una decisión ya tomada durante esa espera.
+   */
+  onReveal?: () => void;
+}
+
+/** Paso del guion de instrucciones: qué mano mostrar, si hay partículas y cómo se mueve. */
+export interface InstructionStep {
+  hand: 'pointer' | 'clicking';
+  particles?: boolean;
+  /** Desplazamiento relativo (px) animado durante el paso. */
+  move?: { dx: number; dy: number };
+  durationMs: number;
 }
 
 export interface Microgame {
@@ -38,4 +53,14 @@ export interface Microgame {
   durationMs: number; // límite; timeout = lose
   Component: React.FC<MicrogameProps>;
   thumbnail?: number; // require() para el menú (fase posterior)
+  /** Guion del bucle de instrucciones (InstructionHint). Sin guion = sin overlay. */
+  instructions?: InstructionStep[];
+  /**
+   * El juego ya muestra su propia animación de victoria/derrota (delay interno
+   * antes de invocar onResult). El runner no superpone VerdictReaction encima.
+   */
+  hasOwnReveal?: boolean;
+  /** width/height del stage (MicrogameStage). Por defecto 3/4; úsalo cuando el
+   * juego tiene fondo propio y no quieres que se recorte. */
+  stageAspectRatio?: number;
 }

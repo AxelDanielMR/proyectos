@@ -15,6 +15,7 @@ export interface BoardProps {
 }
 
 const EMPTY_SET: ReadonlySet<number> = new Set();
+const EMPTY_NOTES: ReadonlySet<number> = new Set();
 const NO_BORDER = { right: 0, bottom: 0 } as const;
 
 export function Board({
@@ -30,11 +31,10 @@ export function Board({
 
   return (
     <ImageBackground
-      source={require('../../../assets/grids/grid_flowers_roses.png')}
+      source={require('../../../assets/grids/grid_base.png')}
       resizeMode="stretch"
       style={styles.board}
     >
-      {/* Inner padding lets the image frame show around the cells */}
       <View style={styles.inner}>
         {Array.from({ length: 9 }, (_, row) => (
           <View key={row} style={styles.row}>
@@ -48,7 +48,7 @@ export function Board({
                   isSelected={selectedIndex === idx}
                   isPeer={peers != null && peers.has(idx)}
                   isError={errorIndices.has(idx)}
-                  notes={notes?.get(idx) ?? new Set()}
+                  notes={notes?.get(idx) ?? EMPTY_NOTES}
                   pack={pack}
                   onPress={() => onCellPress(idx)}
                   borderWidths={NO_BORDER}

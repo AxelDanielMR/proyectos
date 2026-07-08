@@ -53,12 +53,11 @@ export async function getUser(uid: string): Promise<UserProfile | null> {
   return result.data;
 }
 
-export async function createUser(
-  uid: string,
+function baseProfile(
   email: string,
   displayName: string,
-): Promise<UserProfile> {
-  const profile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> = {
+): Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> {
+  return {
     displayName,
     email,
     wallet: { coins: 0 },
@@ -66,6 +65,14 @@ export async function createUser(
     active: { symbolPackId: 'numbers' },
     stats: { highscore: 0, totalGames: 0 },
   };
+}
+
+export async function createUser(
+  uid: string,
+  email: string,
+  displayName: string,
+): Promise<UserProfile> {
+  const profile = baseProfile(email, displayName);
 
   await setDoc(userRef(uid), {
     ...profile,
@@ -86,31 +93,38 @@ export async function updateActiveSymbolPack(
   });
 }
 
-export async function updateHighscoreIfBetter(
+// Canjea el resultado de una run en una sola transacción. Si el perfil no
+// existe en Firestore (registro previo al cableado de createUser, o write
+// fallido), lo crea aquí mismo — sin esto el canje sería un no-op silencioso.
+export async function settleRun(
   uid: string,
-  score: number,
+  identity: { email: string; displayName: string },
+  result: { score: number; coins: number },
 ): Promise<void> {
+  const coins = Math.max(0, result.coins);
+  const score = Math.max(0, result.score);
   await runTransaction(firestore, async (tx) => {
-    const snap = await tx.get(userRef(uid));
-    if (!snap.exists()) return;
-    const current = (snap.data().stats?.highscore as number | undefined) ?? 0;
-    if (score <= current) return;
-    tx.update(userRef(uid), {
-      'stats.highscore': score,
-      'stats.totalGames': ((snap.data().stats?.totalGames as number | undefined) ?? 0) + 1,
-      updatedAt: serverTimestamp(),
-    });
-  });
-}
-
-export async function addCoins(uid: string, amount: number): Promise<void> {
-  if (amount <= 0) return;
-  await runTransaction(firestore, async (tx) => {
-    const snap = await tx.get(userRef(uid));
-    if (!snap.exists()) return;
-    const current = (snap.data().wallet?.coins as number | undefined) ?? 0;
-    tx.update(userRef(uid), {
-      'wallet.coins': current + amount,
+    const ref = userRef(uid);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) {
+      const profile = baseProfile(identity.email, identity.displayName);
+      tx.set(ref, {
+        ...profile,
+        wallet: { coins },
+        stats: { highscore: score, totalGames: 1 },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+    const data = snap.data();
+    const highscore = (data.stats?.highscore as number | undefined) ?? 0;
+    const totalGames = (data.stats?.totalGames as number | undefined) ?? 0;
+    const currentCoins = (data.wallet?.coins as number | undefined) ?? 0;
+    tx.update(ref, {
+      'stats.highscore': Math.max(highscore, score),
+      'stats.totalGames': totalGames + 1,
+      'wallet.coins': currentCoins + coins,
       updatedAt: serverTimestamp(),
     });
   });
