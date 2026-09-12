@@ -1,4 +1,4 @@
-import { revealCandidate, pickHintCell, revealGoldenCell } from '../hints';
+import { revealCandidate, pickHintCell, revealRandomCell } from '../hints';
 import type { Board } from '../types';
 
 // prettier-ignore
@@ -61,20 +61,20 @@ describe('pickHintCell', () => {
   });
 });
 
-describe('revealGoldenCell', () => {
+describe('revealRandomCell', () => {
   it('returns idx and value for an unsolved board', () => {
-    const result = revealGoldenCell(emptyBoard, SOLUTION, firstRng);
+    const result = revealRandomCell(emptyBoard, SOLUTION, firstRng);
     expect(result).not.toBeNull();
     expect(result!.idx).toBeGreaterThanOrEqual(0);
     expect(result!.value).toBe(SOLUTION[result!.idx]);
   });
 
   it('returns null when the board is complete', () => {
-    expect(revealGoldenCell(SOLUTION, SOLUTION, firstRng)).toBeNull();
+    expect(revealRandomCell(SOLUTION, SOLUTION, firstRng)).toBeNull();
   });
 
   it('the returned value matches the solution at the returned index', () => {
-    const result = revealGoldenCell(emptyBoard, SOLUTION, () => 0.5);
+    const result = revealRandomCell(emptyBoard, SOLUTION, () => 0.5);
     expect(result).not.toBeNull();
     expect(result!.value).toBe(SOLUTION[result!.idx]);
   });

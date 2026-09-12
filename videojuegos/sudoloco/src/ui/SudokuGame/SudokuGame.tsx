@@ -1,7 +1,9 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Text } from '@ui/primitives/Text';
 import { useStore } from 'zustand/react';
+import type { CellValue } from '@core/sudoku';
 import type { SymbolPack } from '@core/symbols';
 import { colors } from '@theme/colors';
 import { actionIcons } from '@ui/icons';
@@ -35,6 +37,7 @@ export const SudokuGame = React.memo(function SudokuGame({
   showGoldenButton = false,
   template = null,
 }: SudokuGameProps) {
+  const { t } = useTranslation();
   const puzzle = useStore(store, (s) => s.puzzle);
   const board = useStore(store, (s) => s.board);
   const {
@@ -51,7 +54,7 @@ export const SudokuGame = React.memo(function SudokuGame({
   const errorIndices = useStore(store, (s) => s.errorIndices);
   const notesByCell = useStore(store, (s) => s.notesByCell);
 
-  function handleNumberSelect(value: import('@core/sudoku').CellValue) {
+  function handleNumberSelect(value: CellValue) {
     if (isNotesMode) {
       actions.toggleNote(value);
     } else {
@@ -73,7 +76,7 @@ export const SudokuGame = React.memo(function SudokuGame({
 
   const goldenBannerEl = isGoldenMode ? (
     <Pressable style={styles.goldenBanner} onPress={actions.cancelGoldenMode}>
-      <Text style={styles.goldenBannerText}>✨ Toca una casilla para revelarla  ✕</Text>
+      <Text style={styles.goldenBannerText}>{t('sudokuGame.tapToReveal')}</Text>
     </Pressable>
   ) : null;
 
@@ -84,9 +87,16 @@ export const SudokuGame = React.memo(function SudokuGame({
           <Pressable
             onPress={actions.useHint}
             disabled={hintsRemaining <= 0}
-            style={[styles.controlBtn, hintsRemaining <= 0 && styles.controlDisabled]}
+            style={[
+              styles.controlBtn,
+              hintsRemaining <= 0 && styles.controlDisabled,
+            ]}
           >
-            <Image source={actionIcons.hint} style={styles.controlIcon} resizeMode="contain" />
+            <Image
+              source={actionIcons.hint}
+              style={styles.controlIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.controlCount}>{hintsRemaining}</Text>
           </Pressable>
         )}
@@ -94,9 +104,16 @@ export const SudokuGame = React.memo(function SudokuGame({
           <Pressable
             onPress={actions.useSilverCell}
             disabled={silverRemaining <= 0}
-            style={[styles.controlBtn, silverRemaining <= 0 && styles.controlDisabled]}
+            style={[
+              styles.controlBtn,
+              silverRemaining <= 0 && styles.controlDisabled,
+            ]}
           >
-            <Image source={actionIcons.silverCell} style={styles.controlIcon} resizeMode="contain" />
+            <Image
+              source={actionIcons.silverCell}
+              style={styles.controlIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.controlCount}>{silverRemaining}</Text>
           </Pressable>
         )}
@@ -104,9 +121,17 @@ export const SudokuGame = React.memo(function SudokuGame({
           <Pressable
             onPress={actions.useGoldenCell}
             disabled={goldenRemaining <= 0}
-            style={[styles.controlBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
+            style={[
+              styles.controlBtn,
+              isGoldenMode && styles.controlBtnActive,
+              goldenRemaining <= 0 && styles.controlDisabled,
+            ]}
           >
-            <Image source={actionIcons.goldenCell} style={styles.controlIcon} resizeMode="contain" />
+            <Image
+              source={actionIcons.goldenCell}
+              style={styles.controlIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.controlCount}>{goldenRemaining}</Text>
           </Pressable>
         )}
@@ -117,10 +142,18 @@ export const SudokuGame = React.memo(function SudokuGame({
           onPress={actions.toggleNotesMode}
           style={[styles.controlBtn, isNotesMode && styles.controlBtnActive]}
         >
-          <Image source={actionIcons.pencil} style={styles.controlIcon} resizeMode="contain" />
+          <Image
+            source={actionIcons.pencil}
+            style={styles.controlIcon}
+            resizeMode="contain"
+          />
         </Pressable>
         <Pressable onPress={actions.erase} style={styles.controlBtn}>
-          <Image source={actionIcons.eraser} style={styles.controlIcon} resizeMode="contain" />
+          <Image
+            source={actionIcons.eraser}
+            style={styles.controlIcon}
+            resizeMode="contain"
+          />
         </Pressable>
       </View>
     </View>
@@ -142,35 +175,65 @@ export const SudokuGame = React.memo(function SudokuGame({
       <Pressable
         onPress={actions.useHint}
         disabled={hintsRemaining <= 0}
-        style={[styles.columnBtn, hintsRemaining <= 0 && styles.controlDisabled]}
+        style={[
+          styles.columnBtn,
+          hintsRemaining <= 0 && styles.controlDisabled,
+        ]}
       >
-        <Image source={actionIcons.hint} style={styles.controlIcon} resizeMode="contain" />
+        <Image
+          source={actionIcons.hint}
+          style={styles.controlIcon}
+          resizeMode="contain"
+        />
         <Text style={styles.controlCount}>{hintsRemaining}</Text>
       </Pressable>
       <Pressable
         onPress={actions.useSilverCell}
         disabled={silverRemaining <= 0}
-        style={[styles.columnBtn, silverRemaining <= 0 && styles.controlDisabled]}
+        style={[
+          styles.columnBtn,
+          silverRemaining <= 0 && styles.controlDisabled,
+        ]}
       >
-        <Image source={actionIcons.silverCell} style={styles.controlIcon} resizeMode="contain" />
+        <Image
+          source={actionIcons.silverCell}
+          style={styles.controlIcon}
+          resizeMode="contain"
+        />
         <Text style={styles.controlCount}>{silverRemaining}</Text>
       </Pressable>
       <Pressable
         onPress={actions.useGoldenCell}
         disabled={goldenRemaining <= 0}
-        style={[styles.columnBtn, isGoldenMode && styles.controlBtnActive, goldenRemaining <= 0 && styles.controlDisabled]}
+        style={[
+          styles.columnBtn,
+          isGoldenMode && styles.controlBtnActive,
+          goldenRemaining <= 0 && styles.controlDisabled,
+        ]}
       >
-        <Image source={actionIcons.goldenCell} style={styles.controlIcon} resizeMode="contain" />
+        <Image
+          source={actionIcons.goldenCell}
+          style={styles.controlIcon}
+          resizeMode="contain"
+        />
         <Text style={styles.controlCount}>{goldenRemaining}</Text>
       </Pressable>
       <Pressable
         onPress={actions.toggleNotesMode}
         style={[styles.columnBtn, isNotesMode && styles.controlBtnActive]}
       >
-        <Image source={actionIcons.pencil} style={styles.controlIcon} resizeMode="contain" />
+        <Image
+          source={actionIcons.pencil}
+          style={styles.controlIcon}
+          resizeMode="contain"
+        />
       </Pressable>
       <Pressable onPress={actions.erase} style={styles.columnBtn}>
-        <Image source={actionIcons.eraser} style={styles.controlIcon} resizeMode="contain" />
+        <Image
+          source={actionIcons.eraser}
+          style={styles.controlIcon}
+          resizeMode="contain"
+        />
       </Pressable>
     </View>
   );
@@ -182,12 +245,18 @@ export const SudokuGame = React.memo(function SudokuGame({
         urgency={template.urgency}
         paused={template.paused}
         boardSlot={
-          <View style={styles.templateBoardWrap} pointerEvents={isComplete ? 'none' : 'auto'}>
+          <View
+            style={styles.templateBoardWrap}
+            pointerEvents={isComplete ? 'none' : 'auto'}
+          >
             {boardEl}
           </View>
         }
         controlsSlot={
-          <View style={styles.templateControls} pointerEvents={isComplete ? 'none' : 'auto'}>
+          <View
+            style={styles.templateControls}
+            pointerEvents={isComplete ? 'none' : 'auto'}
+          >
             {goldenBannerEl}
             <View style={styles.templateControlsRow}>
               <View style={styles.templateNumpadWrap}>{numpadEl}</View>

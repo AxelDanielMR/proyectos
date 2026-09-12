@@ -83,5 +83,26 @@
       "tap-timing": "Timing",
       "tap-spam": "Machacar"
     }
+  },
+  "sudoloco": {
+    "inProgress": "Partida en curso",
+    "newGame": "Empezar de nuevo",
+    "levelLabel": "Nivel {{level}}",
+    "levelLabelColon": "Nivel: {{level}}",
+    "levelShort": "Nv {{level}}",
+    "scoreLabel": "Score: {{score}}",
+    "gameOver": "Fin del juego",
+    "backToMenu": "Volver al menú",
+    "levelComplete": "¡Nivel {{level}} completado!",
+    "timeBonus": "+{{seconds}} segundos",
+    "nextLevel": "Siguiente nivel",
+    "paused": "⏸️ Pausa",
+    "saved": "¡Guardado! ✓",
+    "autosaveHint": "Tu progreso se guarda automáticamente",
+    "coinsEarned_one": "+{{count}} moneda",
+    "coinsEarned_other": "+{{count}} monedas"
+  },
+  "sudokuGame": {
+    "tapToReveal": "✨ Toca una casilla para revelarla ✕"
   }
 }

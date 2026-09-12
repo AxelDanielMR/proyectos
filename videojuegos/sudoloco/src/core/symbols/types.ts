@@ -1,4 +1,6 @@
-export type SymbolPackId = 'numbers' | 'colors' | 'pixel' | 'shapes' | 'mugiwaras' | 'jojos';
+// 'figures' y 'sprites' (Fase de tienda, desbloqueables) se agregan aquí
+// cuando existan de verdad — ver ARCHITECTURE.md §"Economía y customización".
+export type SymbolPackId = 'numbers' | 'colors';
 
 export interface SymbolPack {
   readonly id: SymbolPackId;

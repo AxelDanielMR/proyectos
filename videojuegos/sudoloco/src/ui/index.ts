@@ -3,3 +3,7 @@ export * from './Board';
 export * from './Cell';
 export * from './NumberPad';
 export * from './ProgressBar';
+export * from './PlayfieldBackground';
+export * from './SudokuGame';
+export * from './icons';
+export * from './symbols';

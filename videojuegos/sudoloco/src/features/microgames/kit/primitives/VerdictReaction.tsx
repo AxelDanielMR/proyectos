@@ -37,9 +37,12 @@ export function VerdictReaction({
         }),
       ),
     );
-  }, []);
+    // `scale` is a Reanimated SharedValue: stable identity across renders.
+  }, [scale]);
 
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
   const face = result === 'win' ? '😄🎉😄' : '😠😞😠';
 
   return (

@@ -4,7 +4,12 @@ import { isValid } from '../validator';
 import { getClueRange } from '../difficulty';
 import type { Difficulty } from '../types';
 
-const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'hard', 'expert'];
+const DIFFICULTIES: Difficulty[] = [
+  'beginner',
+  'intermediate',
+  'hard',
+  'expert',
+];
 
 describe('generate', () => {
   it('is deterministic: same seed produces the same puzzle', () => {
@@ -34,13 +39,13 @@ describe('generate', () => {
 
   for (const difficulty of DIFFICULTIES) {
     describe(`difficulty: ${difficulty}`, () => {
-      const puzzle = generate(difficulty, `test-${difficulty}`);
-      const { min, max } = getClueRange(difficulty);
-      const clueCount = puzzle.initial.filter((v) => v !== 0).length;
+      // Generated in beforeAll rather than the describe body: a throw here
+      // fails one named test instead of aborting the whole suite with an
+      // unattributed collection-time error.
+      let puzzle: ReturnType<typeof generate>;
 
-      it(`clue count is within range [${min}, ${max}]`, () => {
-        expect(clueCount).toBeGreaterThanOrEqual(min);
-        expect(clueCount).toBeLessThanOrEqual(max);
+      beforeAll(() => {
+        puzzle = generate(difficulty, `test-${difficulty}`);
       });
 
       it('solution is a complete board (no zeros)', () => {
@@ -67,6 +72,19 @@ describe('generate', () => {
       it('puzzle has a unique solution', () => {
         expect(hasUniqueSolution(puzzle.initial)).toBe(true);
       });
+    });
+
+    // A single seed hid a real bug (expert puzzles landing outside the
+    // range 13-16% of the time) — sample many seeds so a regression here
+    // shows up again instead of getting lucky on one fixed seed.
+    it(`clue count is within range across many seeds (${difficulty})`, () => {
+      const { min, max } = getClueRange(difficulty);
+      for (let i = 0; i < 25; i++) {
+        const puzzle = generate(difficulty, `range-${difficulty}-${i}`);
+        const clueCount = puzzle.initial.filter((v) => v !== 0).length;
+        expect(clueCount).toBeGreaterThanOrEqual(min);
+        expect(clueCount).toBeLessThanOrEqual(max);
+      }
     });
   }
 });

@@ -6,19 +6,19 @@ Guía de la arquitectura del proyecto y los siguientes pasos. Pensada para que c
 
 ## 1. Stack
 
-| Capa | Tecnología | Notas |
-|---|---|---|
-| Runtime | Expo SDK 54, React Native 0.81, React 19 | New Architecture habilitada |
-| Lenguaje | TypeScript estricto (`noUncheckedIndexedAccess`) | |
-| Navegación | Expo Router (file-based, `app/`) | `typedRoutes` activado |
-| UI | NativeWind 4 + Reanimated 4 | Tailwind para RN |
-| Estado global | Zustand (por feature, sin store monolítica) | |
-| Datos backend | TanStack React Query | Caché + refetch + optimistic |
-| Backend | Firebase **Spark (gratis)** | Auth + Firestore + Realtime DB + Storage |
-| Validación runtime | Zod | env y datos de Firestore |
-| Almacenamiento local | MMKV (rápido, síncrono) + SecureStore (tokens) | |
-| i18n | i18next + react-i18next + expo-localization | `es` y `en` |
-| Calidad | ESLint (config Expo) + Prettier + tsc | |
+| Capa                 | Tecnología                                       | Notas                                                                                                                           |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime              | Expo SDK 54, React Native 0.81, React 19         | New Architecture habilitada                                                                                                     |
+| Lenguaje             | TypeScript estricto (`noUncheckedIndexedAccess`) |                                                                                                                                 |
+| Navegación           | Expo Router (file-based, `app/`)                 | `typedRoutes` activado                                                                                                          |
+| UI                   | NativeWind 4 + Reanimated 4                      | Tailwind para RN                                                                                                                |
+| Estado global        | Zustand (por feature, sin store monolítica)      |                                                                                                                                 |
+| Datos backend        | TanStack React Query                             | Caché + refetch + optimistic                                                                                                    |
+| Backend              | Firebase **Spark (gratis)**                      | Auth + Firestore + Realtime DB + Storage                                                                                        |
+| Validación runtime   | Zod                                              | env y datos de Firestore                                                                                                        |
+| Almacenamiento local | AsyncStorage (run activa) + SecureStore (tokens) | MMKV estaba en el plan original pero no llegó a instalarse; AsyncStorage async + validación Zod al leer cumple lo necesario hoy |
+| i18n                 | i18next + react-i18next + expo-localization      | `es` y `en`                                                                                                                     |
+| Calidad              | ESLint (config Expo) + Prettier + tsc            |                                                                                                                                 |
 
 > **Plan Spark (sin Cloud Functions)**: La validación de movimientos en "Versus Mar" se hace con **Realtime Database Security Rules** + transacciones cliente. Más detalle en §5.
 
@@ -57,7 +57,7 @@ sudoloco/
 │   │
 │   ├── services/                 # Acceso a backends externos
 │   │   ├── firebase/             # client (auth, firestore, RTDB)
-│   │   └── storage/              # mmkv + secure-store
+│   │   └── storage/              # secure-store (AsyncStorage se usa directo en features/)
 │   │
 │   ├── providers/                # AppProviders, QueryProvider
 │   ├── theme/                    # tokens de color
@@ -132,7 +132,8 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 ```
 
 **Lo que NO va a Firestore:**
-- Run activa (timer, vidas, board) → MMKV exclusivamente
+
+- Run activa (timer, vidas, board) → AsyncStorage exclusivamente (ver `src/features/sudoloco/save.storage.ts`)
 - `hasRemovedAds` → RevenueCat lo gestiona
 - Progreso de Historia/Cuento → se añadirá como `completedChapterIds: string[]` cuando existan esas features
 - Stats detalladas (errores totales, etc.) → decidir al implementar analytics
@@ -156,6 +157,7 @@ También `@/*` → `src/*` como alias genérico de respaldo.
 ## 5. Auth anónimo y registro opcional
 
 ### Filosofía
+
 El usuario entra directo al juego sin ninguna pantalla de login. Firebase asigna un UID anónimo silenciosamente. El registro es opcional y se ofrece en momentos contextuales. Si el usuario nunca se registra y desinstala la app, sus datos se pierden — esto se comunica en la UI como incentivo a registrarse.
 
 ### Flujo
@@ -191,18 +193,19 @@ type AuthStatus = 'loading' | 'anonymous' | 'authenticated' | 'unauthenticated';
 
 ### Archivos clave
 
-| Archivo | Responsabilidad |
-|---|---|
-| `app/_layout.tsx` (AuthGuard) | Llama a `signInAnonymously` si no hay usuario; no redirige a login |
-| `features/auth/store.ts` | Añade estado `'anonymous'`; acción `linkAccount(email, password)` |
-| `app/(auth)/login.tsx` | Solo accesible desde perfil o nudge, no como gate obligatorio |
-| `app/(auth)/register.tsx` | Usa `linkWithCredential` si hay sesión anónima; crea cuenta nueva si no |
+| Archivo                       | Responsabilidad                                                         |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `app/_layout.tsx` (AuthGuard) | Llama a `signInAnonymously` si no hay usuario; no redirige a login      |
+| `features/auth/store.ts`      | Añade estado `'anonymous'`; acción `linkAccount(email, password)`       |
+| `app/(auth)/login.tsx`        | Solo accesible desde perfil o nudge, no como gate obligatorio           |
+| `app/(auth)/register.tsx`     | Usa `linkWithCredential` si hay sesión anónima; crea cuenta nueva si no |
 
 ---
 
 ## 5b. Anuncios (AdMob) + compra "sin anuncios" (RevenueCat)
 
 ### Librerías
+
 - `react-native-google-mobile-ads` — intersticiales AdMob
 - `react-native-purchases` — RevenueCat IAP (pago único, gestiona recibos y restore purchases)
 - Instalar solo en **Fase 9** — requieren config nativa y cuentas en AdMob/RevenueCat/Google Play Console
@@ -215,14 +218,15 @@ function shouldShowAd(
   trigger: 'puzzle_complete' | 'game_over',
   puzzlesSinceLastAd: number,
 ): boolean {
-  if (trigger === 'game_over') return true;           // siempre en game over
-  return puzzlesSinceLastAd >= 3;                     // cada 3 puzzles durante la run
+  if (trigger === 'game_over') return true; // siempre en game over
+  return puzzlesSinceLastAd >= 3; // cada 3 puzzles durante la run
 }
 ```
 
 Usuarios con entitlement "sin anuncios": `shouldShowAd` nunca se ejecuta.
 
 ### Entitlement "sin anuncios"
+
 RevenueCat gestiona el recibo del pago único y el restore purchases. `useHasRemovedAds()` consulta RevenueCat — funciona tras reinstalar sin tocar Firestore.
 
 ### Estructura
@@ -238,10 +242,10 @@ El `RunStore` de Sudoloco mantiene `puzzlesSinceLastAd: number`: incrementa en `
 
 ### Análisis de rentabilidad (referencia LATAM, CPM ~$1)
 
-| DAU | Impresiones/día (cap 3) | Ingreso/mes |
-|---|---|---|
-| 1,000 | ~2,500 | ~$75 |
-| 10,000 | ~25,000 | ~$750 |
+| DAU    | Impresiones/día (cap 3) | Ingreso/mes |
+| ------ | ----------------------- | ----------- |
+| 1,000  | ~2,500                  | ~$75        |
+| 10,000 | ~25,000                 | ~$750       |
 
 Costo Firestore con modelo mínimo: < $1/mes hasta 10,000 DAU.
 
@@ -250,11 +254,13 @@ Costo Firestore con modelo mínimo: < $1/mes hasta 10,000 DAU.
 ## 6. Multijugador en plan gratuito (sin Cloud Functions)
 
 ### Versus Islas (asíncrono)
+
 - Ambos clientes comparten el `seed`. Cada uno **genera localmente** el mismo tablero (el generador es determinista).
 - Solo se sincroniza `progress[uid]` (un número 0..100) cada N celdas, throttled.
 - Trivial, casi gratis en Firestore.
 
 ### Versus Mar (tiempo real)
+
 - Estado en Realtime DB: `/liveMatches/{matchId}`.
 - **Validación en Security Rules** (no en código de cliente):
   - Solo participantes pueden escribir.
@@ -283,17 +289,17 @@ computeProgress(board, solution): number  // 0..100
 // Fase 3 — pendiente, vive en core/sudoku/hints.ts
 pickHintCell(board, solution, rng): number              // elige celda candidata para pista
 revealCandidate(board, solution, idx): CellValue[]      // candidatos correctos para esa celda
-revealGoldenCell(board, solution, rng): { idx: number; value: CellValue }
+revealRandomCell(board, solution, rng): { idx: number; value: CellValue }
 ```
 
 **Dificultad** = combinación de `(número de pistas, técnicas requeridas para resolver)`:
 
-| Nivel | Pistas | Técnicas |
-|---|---|---|
-| Principiante | 36–40 | naked singles |
-| Intermedio | 30–35 | hidden singles |
-| Difícil | 26–29 | pointing pairs, box-line |
-| Experto | 22–25 | X-wing, swordfish |
+| Nivel        | Pistas | Técnicas                 |
+| ------------ | ------ | ------------------------ |
+| Principiante | 36–40  | naked singles            |
+| Intermedio   | 30–35  | hidden singles           |
+| Difícil      | 26–29  | pointing pairs, box-line |
+| Experto      | 22–25  | X-wing, swordfish        |
 
 **Generador determinista por seed**: misma seed → mismo tablero. Esto habilita Versus Islas sin transmitir el tablero completo.
 
@@ -307,35 +313,35 @@ La sesión es una **run infinita**: siempre termina en game over. El objetivo es
 
 ```ts
 interface RunState {
-  level: number;         // número de puzzle en la run (empieza en 1)
-  lives: number;         // vidas restantes (inicio: 3)
+  level: number; // número de puzzle en la run (empieza en 1)
+  lives: number; // vidas restantes (inicio: 3)
   timeRemaining: number; // segundos en el contador
-  score: number;         // puntuación acumulada (persiste como highscore)
-  hints: number;         // usos de pista disponibles
-  goldenCells: number;   // usos de casilla dorada disponibles
+  score: number; // puntuación acumulada (persiste como highscore)
+  hints: number; // usos de pista disponibles
+  goldenCells: number; // usos de casilla dorada disponibles
   phase: 'playing' | 'microgame' | 'between_levels' | 'gameover';
 }
 ```
 
 ### Condiciones de fin de run
 
-| Condición | Efecto |
-|---|---|
-| `timeRemaining === 0` | Game over inmediato |
-| `lives === 0` | Game over inmediato |
-| Colocar número incorrecto | `lives--` |
+| Condición                 | Efecto              |
+| ------------------------- | ------------------- |
+| `timeRemaining === 0`     | Game over inmediato |
+| `lives === 0`             | Game over inmediato |
+| Colocar número incorrecto | `lives--`           |
 
 ### Timer (se acumula entre puzzles)
 
 - El timer **no resetea** al completar un nivel — se acumula durante toda la run.
 - Cada celda correctamente colocada añade tiempo según la dificultad del nivel:
 
-| Dificultad | Segundos por celda correcta |
-|---|---|
-| beginner | +4 s |
-| intermediate | +3 s |
-| hard | +2 s |
-| expert | +2 s |
+| Dificultad   | Segundos por celda correcta |
+| ------------ | --------------------------- |
+| beginner     | +4 s                        |
+| intermediate | +3 s                        |
+| hard         | +2 s                        |
+| expert       | +2 s                        |
 
 - Timer inicial al empezar una run: **180 s** (definido en `core/sudoku/progression.ts`).
 
@@ -352,11 +358,11 @@ Encapsulado en `core/sudoku/progression.ts`: `levelConfig(level) → { difficult
 
 ### Puntuación
 
-| Evento | Puntos |
-|---|---|
-| Celda correcta colocada | `10 × (floor(level / 5) + 1)` |
-| Puzzle completado | `500 × level` |
-| Recompensa de microjuego (score) | variable (ver §8) |
+| Evento                           | Puntos                        |
+| -------------------------------- | ----------------------------- |
+| Celda correcta colocada          | `10 × (floor(level / 5) + 1)` |
+| Puzzle completado                | `500 × level`                 |
+| Recompensa de microjuego (score) | variable (ver §8)             |
 
 El highscore final se guarda en Firestore (`/users/{uid}/stats.highscore`).
 
@@ -371,7 +377,7 @@ interface Microgame {
   id: string;
   name: string;
   durationMs: number;
-  Component: React.FC<{ onResult: (r: 'win'|'lose'|'timeout') => void }>;
+  Component: React.FC<{ onResult: (r: 'win' | 'lose' | 'timeout') => void }>;
 }
 ```
 
@@ -396,15 +402,15 @@ Perder o agotar el tiempo → `{ kind: 'none' }`.
 
 ### Tabla de probabilidades (interpolada por nivel)
 
-| Recompensa | Nivel 1 | Nivel 20+ |
-|---|---|---|
-| time (+segundos) | 26 % | 22 % |
-| hint (+1) | 18 % | 20 % |
-| silver_cell | 12 % | 14 % |
-| golden_cell | 4 % | 8 % |
-| life (+1) | 5 % | 8 % |
-| crystal_heart | 10 % | 8 % |
-| none | 25 % | 20 % |
+| Recompensa       | Nivel 1 | Nivel 20+ |
+| ---------------- | ------- | --------- |
+| time (+segundos) | 26 %    | 22 %      |
+| hint (+1)        | 18 %    | 20 %      |
+| silver_cell      | 12 %    | 14 %      |
+| golden_cell      | 4 %     | 8 %       |
+| life (+1)        | 5 %     | 8 %       |
+| crystal_heart    | 10 %    | 8 %       |
+| none             | 25 %    | 20 %      |
 
 Las recompensas más fuertes (golden_cell, life) escalan hacia arriba con el nivel. La lógica de interpolación vive en `core/sudoku/rewards.ts` (pura, testeable).
 
@@ -412,14 +418,14 @@ Las recompensas más fuertes (golden_cell, life) escalan hacia arriba con el niv
 
 ## 9. Estado y caché
 
-| Tipo de estado | Solución |
-|---|---|
-| UI local de un componente | `useState` |
-| Estado de una feature (tablero en juego, modo) | Zustand (una store por feature) |
-| Run state completa roguelike (sobrevive cierre) | Zustand + MMKV |
-| Datos remotos (perfil, partidas, capítulos) | React Query |
-| Tokens, secrets | SecureStore |
-| Idioma seleccionado | MMKV |
+| Tipo de estado                                  | Solución                                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| UI local de un componente                       | `useState`                                                                           |
+| Estado de una feature (tablero en juego, modo)  | Zustand (una store por feature)                                                      |
+| Run state completa roguelike (sobrevive cierre) | Zustand + AsyncStorage                                                               |
+| Datos remotos (perfil, partidas, capítulos)     | React Query                                                                          |
+| Tokens, secrets                                 | SecureStore                                                                          |
+| Idioma seleccionado                             | _(pendiente — hoy sigue el locale del SO en cada arranque, sin override persistido)_ |
 
 ---
 
@@ -474,15 +480,15 @@ npm run test:coverage     # Jest con cobertura
 - [x] ESLint + Prettier + tsconfig estricto + path aliases
 - [x] Bundle Android verificado (`expo export` exitoso)
 
-### Fase 1 ✅ — Núcleo Sudoku (61 tests)
+### Fase 1 ✅ — Núcleo Sudoku (152 tests)
 
-- [x] `core/sudoku/prng.ts` — PRNG determinístico por seed (FNV-1a + xorshift)
-- [x] `core/sudoku/validator.ts` — peers pre-computados, `isValid`, `validateMove`, `isBoardSolved`
-- [x] `core/sudoku/solver.ts` — backtracking + MRV heurístico, `countSolutions`, `hasUniqueSolution`
-- [x] `core/sudoku/generator.ts` — genera tablero determinista por seed, unicidad garantizada
+- [x] `core/sudoku/prng.ts` — PRNG determinístico por seed (mulberry32 + hash FNV-1a)
+- [x] `core/sudoku/validator.ts` — peers pre-computados, `isValid`, `validateMove`, `matchesSolution`
+- [x] `core/sudoku/solver.ts` — backtracking + MRV heurístico (en `solve` y `countSolutions`), `hasUniqueSolution`
+- [x] `core/sudoku/generator.ts` — genera tablero determinista por seed; reintenta con seeds derivadas si una perforación no alcanza el rango de pistas objetivo
 - [x] `core/sudoku/difficulty.ts` — rangos de pistas por dificultad
 - [x] `core/sudoku/progress.ts` — `computeProgress`, `detectBoxCompletion`
-- [x] Tests Jest: **61/61** ✅
+- [x] Tests Jest: **152/152** ✅ (`npm test`)
 
 ### Fase 2 ✅ — UI base
 
@@ -513,22 +519,15 @@ Trabajo de presentación del menú principal en `app/(tabs)/home.tsx`. Pausado t
 ### Fase 3 — Motor compartido + Modo Sudoloco
 
 **3a. Núcleo puro extra (`core/sudoku/`)**
+
 1. `progression.ts` — `levelConfig(level): { difficulty, secsPerCell }` + `INITIAL_TIME_S`. Tests Jest.
 2. `rewards.ts` — `rollReward(level, rng): Reward` con tabla interpolada (sin variante `score`). Tests Jest.
-3. `hints.ts` — `pickHintCell`, `revealCandidate`, `revealGoldenCell`. Tests Jest.
+3. `hints.ts` — `pickHintCell`, `revealCandidate`, `revealRandomCell`. Tests Jest.
 4. `economy.ts` — `computeRunReward(score, level): { coins }`. Tests Jest.
 
-**3b. Motor de juego compartido (`src/ui/SudokuGame/`)** — ver §15.
-5. `store.ts` — `createSudokuGameStore(opts)`: estado + acciones + callbacks. Tests con Zustand vanilla.
-6. `SudokuGame.tsx` — compone Board + NumberPad + botones hint/golden. Recibe `store` y `pack`.
-7. `hooks.ts` — selectors finos (`useSelectedCell`, `useCellValue(idx)`, etc.) para evitar re-renders.
+**3b. Motor de juego compartido (`src/ui/SudokuGame/`)** — ver §15. 5. `store.ts` — `createSudokuGameStore(opts)`: estado + acciones + callbacks. Tests con Zustand vanilla. 6. `SudokuGame.tsx` — compone Board + NumberPad + botones hint/golden. Recibe `store` y `pack`. 7. `hooks.ts` — selectors finos (`useSelectedCell`, `useCellValue(idx)`, etc.) para evitar re-renders.
 
-**3c. Modo Sudoloco (`src/features/sudoloco/`)**
-8. `store.ts` (Zustand) — `RunState`: level, lives, timeRemaining, score, hints, goldenCells, coins, phase, puzzlesSinceLastAd. Timer vía `setInterval` start/stop según `phase`.
-9. `screen.tsx` — HUD + `<SudokuGame />` + transiciones de nivel. Suscribe callbacks del motor para sumar tiempo/score/restar vidas/lanzar microjuego.
-10. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (sin estado).
-11. Persistencia de run en MMKV.
-12. Pantalla de game over: calcula coins con `economy.computeRunReward`, escribe highscore + coins en Firestore.
+**3c. Modo Sudoloco (`src/features/sudoloco/`)** 8. `store.ts` (Zustand) — `RunState`: level, lives, timeRemaining, score, hints, goldenCells, coins, phase, puzzlesSinceLastAd. Timer vía `setInterval` start/stop según `phase`. 9. `screen.tsx` — HUD + `<SudokuGame />` + transiciones de nivel. Suscribe callbacks del motor para sumar tiempo/score/restar vidas/lanzar microjuego. 10. `ui/HUD/` — `LivesDisplay`, `TimerDisplay`, `ScoreDisplay` (sin estado). 11. Persistencia de run en AsyncStorage (`save.storage.ts`), validada con Zod al leer. 12. Pantalla de game over: calcula coins con `economy.computeRunReward`, escribe highscore + coins en Firestore.
 
 ### Fase 4 — Auth anónimo + registro opcional
 
@@ -542,26 +541,22 @@ Trabajo de presentación del menú principal en `app/(tabs)/home.tsx`. Pausado t
 ### Fase 5 — Microjuegos + Biblioteca básica (simultáneas)
 
 **Microjuegos**
+
 1. Implementar 3–5 microjuegos iniciales (tap-fast, memory-flash, simon, etc.).
 2. `runner.tsx` — overlay que aparece al completar caja, lanza microjuego, aplica `Reward` al `RunState` vía `rollReward`.
 3. Persistencia de `unlockedMicrogames` en perfil (Firestore `unlocked.microgameIds`).
 
-**Biblioteca básica**
-4. Tab Biblioteca: lista de microjuegos descubiertos (desbloqueados vs bloqueados).
-5. Selector de pack de símbolos activo — lee `unlocked.symbolPackIds` y `active.symbolPackId` de Firestore.
-6. Sección de tienda básica: muestra packs disponibles, permite comprar con coins (escribe en `unlocked.symbolPackIds`).
+**Biblioteca básica** 4. Tab Biblioteca: lista de microjuegos descubiertos (desbloqueados vs bloqueados). 5. Selector de pack de símbolos activo — lee `unlocked.symbolPackIds` y `active.symbolPackId` de Firestore. 6. Sección de tienda básica: muestra packs disponibles, permite comprar con coins (escribe en `unlocked.symbolPackIds`).
 
 ### Fase 6 — Versus Islas + Versus Mar
 
 **Versus Islas**
+
 1. Sistema de códigos de partida (Firestore docs con TTL).
 2. Sistema de amigos (subcolección `/users/{uid}/friends`).
 3. Throttled progress sync (`progress[uid]` 0..100 en Firestore).
 
-**Versus Mar**
-4. Reglas de seguridad RTDB (validación de movimientos).
-5. Transacciones de movimiento + scoring con `runTransaction()`.
-6. Indicadores de presencia.
+**Versus Mar** 4. Reglas de seguridad RTDB (validación de movimientos). 5. Transacciones de movimiento + scoring con `runTransaction()`. 6. Indicadores de presencia.
 
 ### Fase 7 — Historia
 
@@ -618,17 +613,17 @@ src/ui/SudokuGame/
 
 ```ts
 interface SudokuGameOptions {
-  puzzle: Puzzle;                    // generado en core/sudoku
-  initialHints?: number;             // default 0 (el modo decide)
-  initialGoldenCells?: number;       // default 0
-  rng: PRNG;                         // mismo PRNG del puzzle (determinismo)
+  puzzle: Puzzle; // generado en core/sudoku
+  initialHints?: number; // default 0 (el modo decide)
+  initialGoldenCells?: number; // default 0
+  rng: PRNG; // mismo PRNG del puzzle (determinismo)
   callbacks?: SudokuGameCallbacks;
 }
 
 interface SudokuGameCallbacks {
   onCellCorrect?: (idx: number, value: CellValue) => void;
   onCellIncorrect?: (idx: number, value: CellValue) => void;
-  onBoxComplete?: (boxIndex: number) => void;        // 0..8
+  onBoxComplete?: (boxIndex: number) => void; // 0..8
   onPuzzleComplete?: () => void;
 }
 
@@ -645,26 +640,26 @@ interface SudokuGameState {
 
 interface SudokuGameActions {
   select(idx: number | null): void;
-  place(value: CellValue): void;             // dispara onCellCorrect|Incorrect|BoxComplete
+  place(value: CellValue): void; // dispara onCellCorrect|Incorrect|BoxComplete
   toggleNote(value: CellValue): void;
   toggleNotesMode(): void;
   erase(): void;
-  useHint(): void;                           // -1 hintsRemaining, llena notas correctas
-  useGoldenCell(): void;                     // -1 goldenRemaining, place() la solución
-  grantHints(n: number): void;               // modos lo usan al aplicar Reward
+  useHint(): void; // -1 hintsRemaining, llena notas correctas
+  useGoldenCell(): void; // -1 goldenRemaining, place() la solución
+  grantHints(n: number): void; // modos lo usan al aplicar Reward
   grantGoldenCells(n: number): void;
 }
 ```
 
 ### Cómo lo consumen los modos
 
-| Modo | Suscribe | Hace |
-|---|---|---|
-| **Sudoloco** | `onCellCorrect`, `onCellIncorrect`, `onBoxComplete`, `onPuzzleComplete` | suma segundos, score; resta vidas; lanza microjuego; transiciona a siguiente nivel |
-| **Cuento** | `onBoxComplete` | revela imagen `boxIndex` del cuento |
-| **Historia** | `onBoxComplete`, `onPuzzleComplete` | revela imagen del capítulo; al completar marca capítulo |
-| **Versus Islas** | `onCellCorrect` | throttle de `progress[uid]` a Firestore |
-| **Versus Mar** | `onCellCorrect` | `runTransaction()` sobre `/liveMatches/{id}` para sumar score |
+| Modo             | Suscribe                                                                | Hace                                                                               |
+| ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Sudoloco**     | `onCellCorrect`, `onCellIncorrect`, `onBoxComplete`, `onPuzzleComplete` | suma segundos, score; resta vidas; lanza microjuego; transiciona a siguiente nivel |
+| **Cuento**       | `onBoxComplete`                                                         | revela imagen `boxIndex` del cuento                                                |
+| **Historia**     | `onBoxComplete`, `onPuzzleComplete`                                     | revela imagen del capítulo; al completar marca capítulo                            |
+| **Versus Islas** | `onCellCorrect`                                                         | throttle de `progress[uid]` a Firestore                                            |
+| **Versus Mar**   | `onCellCorrect`                                                         | `runTransaction()` sobre `/liveMatches/{id}` para sumar score                      |
 
 El motor **no sabe** de timers, monedas, redes ni microjuegos. Esos viven en cada modo.
 
@@ -701,12 +696,12 @@ El motor **no sabe** de timers, monedas, redes ni microjuegos. Esos viven en cad
 
 ### Packs de símbolos en scope
 
-| Pack | Estado | Notas |
-|---|---|---|
-| `numbers` | ✅ implementado | gratis, default |
-| `colors`  | ✅ implementado | gratis (o desbloqueo barato) |
-| `figures` | pendiente | geométricas (círculo, triángulo, cuadrado, etc.) — render con SVG o `View` |
-| `sprites` | pendiente | mugiwaras/jojos — assets de imagen, evaluar licencias |
+| Pack      | Estado          | Notas                                                                      |
+| --------- | --------------- | -------------------------------------------------------------------------- |
+| `numbers` | ✅ implementado | gratis, default                                                            |
+| `colors`  | ✅ implementado | gratis (o desbloqueo barato)                                               |
+| `figures` | pendiente       | geométricas (círculo, triángulo, cuadrado, etc.) — render con SVG o `View` |
+| `sprites` | pendiente       | mugiwaras/jojos — assets de imagen, evaluar licencias                      |
 
 Render desacoplado: el board guarda 1..9, `Cell` recibe `pack` y renderiza acorde a `pack.kind` (`text` / `color` / `image`).
 
@@ -749,13 +744,13 @@ Cada `<Cell>` se suscribe solo a los datos que le corresponden. Nunca leer el st
 export const useCellState = (idx: number) =>
   useSudokuStore(
     (s) => ({
-      value:      s.board[idx],
-      isFixed:    s.puzzle.fixed.has(idx),
+      value: s.board[idx],
+      isFixed: s.puzzle.fixed.has(idx),
       isSelected: s.selectedIndex === idx,
-      isPeer:     s.selectedIndex != null && PEERS[s.selectedIndex].has(idx),
-      isError:    s.errorIndices.has(idx),
+      isPeer: s.selectedIndex != null && PEERS[s.selectedIndex].has(idx),
+      isError: s.errorIndices.has(idx),
     }),
-    shallow,  // evita re-render si el objeto resultante no cambió
+    shallow, // evita re-render si el objeto resultante no cambió
   );
 ```
 
@@ -793,14 +788,14 @@ Esto convierte el lookup de peers en O(1) en lugar de recalcularlo en cada rende
 
 ### Tabla resumen
 
-| Regla | Riesgo que previene |
-|---|---|
-| `RunState` / `BoardState` en stores separados | Timer contamina re-renders del tablero |
-| `useCellState(idx)` + `shallow` | 81 re-renders por cada movimiento |
-| `React.memo` en Cell y HUD | Re-renders en cascada desde el padre |
-| Acelerómetro → `useSharedValue` | 60 re-renders/s en el hilo JS |
-| Board siempre montado, ocultar con opacity | Costo de montaje en cada microjuego |
-| PEERS pre-computados al importar | Recálculo O(81²) en cada render de celda |
+| Regla                                         | Riesgo que previene                      |
+| --------------------------------------------- | ---------------------------------------- |
+| `RunState` / `BoardState` en stores separados | Timer contamina re-renders del tablero   |
+| `useCellState(idx)` + `shallow`               | 81 re-renders por cada movimiento        |
+| `React.memo` en Cell y HUD                    | Re-renders en cascada desde el padre     |
+| Acelerómetro → `useSharedValue`               | 60 re-renders/s en el hilo JS            |
+| Board siempre montado, ocultar con opacity    | Costo de montaje en cada microjuego      |
+| PEERS pre-computados al importar              | Recálculo O(81²) en cada render de celda |
 
 ---
 

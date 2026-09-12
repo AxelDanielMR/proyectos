@@ -23,13 +23,6 @@ function findBestEmpty(board: MutableBoard): number {
   return best;
 }
 
-function findEmptyLinear(board: MutableBoard): number {
-  for (let i = 0; i < 81; i++) {
-    if (board[i] === 0) return i;
-  }
-  return -1;
-}
-
 function solveMutating(board: MutableBoard): boolean {
   const idx = findBestEmpty(board);
   if (idx === -1) return true;
@@ -56,7 +49,7 @@ export function countSolutions(initial: Board, limit = 2): number {
 
   function bt(): void {
     if (count >= limit) return;
-    const idx = findEmptyLinear(board);
+    const idx = findBestEmpty(board);
     if (idx === -1) {
       count++;
       return;

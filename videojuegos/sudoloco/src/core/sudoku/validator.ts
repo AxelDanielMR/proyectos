@@ -29,7 +29,16 @@ function buildPeers(): readonly ReadonlySet<number>[] {
 
 const PEERS: readonly ReadonlySet<number>[] = buildPeers();
 
+function isValidIndex(idx: number): boolean {
+  return Number.isInteger(idx) && idx >= 0 && idx <= 80;
+}
+
+function isValidCellValue(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= 9;
+}
+
 export function getPeers(idx: number): ReadonlySet<number> {
+  if (!isValidIndex(idx)) return new Set();
   return PEERS[idx]!;
 }
 
@@ -51,6 +60,7 @@ function buildBoxCells(): readonly number[][] {
 export const BOX_CELLS: readonly number[][] = buildBoxCells();
 
 export function isValid(board: Board, idx: number, value: CellValue): boolean {
+  if (!isValidIndex(idx) || !isValidCellValue(value)) return false;
   if (value === 0) return true;
   const peers = PEERS[idx]!;
   for (const peer of peers) {
@@ -64,6 +74,9 @@ export function validateMove(
   idx: number,
   value: CellValue,
 ): MoveResult {
+  if (!isValidIndex(idx) || !isValidCellValue(value)) {
+    return { valid: false, conflictsWith: [] };
+  }
   if (value === 0) return { valid: true, conflictsWith: [] };
   const peers = PEERS[idx]!;
   const conflictsWith: number[] = [];
@@ -73,7 +86,7 @@ export function validateMove(
   return { valid: conflictsWith.length === 0, conflictsWith };
 }
 
-export function isBoardSolved(board: Board, solution: Board): boolean {
+export function matchesSolution(board: Board, solution: Board): boolean {
   for (let i = 0; i < 81; i++) {
     if (board[i] !== solution[i]) return false;
   }

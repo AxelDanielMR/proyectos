@@ -2,9 +2,9 @@ import { createStore } from 'zustand/vanilla';
 import type { Board, CellValue, Puzzle } from '@core/sudoku';
 import {
   detectBoxCompletion,
-  isBoardSolved,
+  matchesSolution,
   pickHintCell,
-  revealGoldenCell,
+  revealRandomCell,
 } from '@core/sudoku';
 import type { SudokuGameOptions, SudokuGameCallbacks } from './types';
 
@@ -57,7 +57,9 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
     goldenRemaining: opts.initialGoldenCells ?? 0,
     isGoldenMode: false,
     isNotesMode: false,
-    isComplete: opts.initialBoard ? isBoardSolved(opts.initialBoard, puzzle.solution) : false,
+    isComplete: opts.initialBoard
+      ? matchesSolution(opts.initialBoard, puzzle.solution)
+      : false,
 
     select(idx) {
       const { isGoldenMode, board, isComplete } = get();
@@ -72,15 +74,19 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
           const value = puzzle.solution[idx] as CellValue;
           const newBoard = [...board] as CellValue[];
           newBoard[idx] = value;
-          const nextBoard = newBoard as unknown as Board;
+          const nextBoard: Board = newBoard;
 
           const newErrors = new Set(get().errorIndices);
           newErrors.delete(idx);
           const newNotes = new Map(get().notesByCell);
           newNotes.delete(idx);
 
-          const completedBox = detectBoxCompletion(board, nextBoard, puzzle.solution);
-          const solved = isBoardSolved(nextBoard, puzzle.solution);
+          const completedBox = detectBoxCompletion(
+            board,
+            nextBoard,
+            puzzle.solution,
+          );
+          const solved = matchesSolution(nextBoard, puzzle.solution);
 
           set({
             board: nextBoard,
@@ -93,7 +99,8 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
 
           callbacks?.onCellCorrect?.(idx, value);
           if (solved) callbacks?.onPuzzleComplete?.();
-          else if (completedBox !== null) callbacks?.onBoxComplete?.(completedBox);
+          else if (completedBox !== null)
+            callbacks?.onBoxComplete?.(completedBox);
         } else {
           // Tap on fixed/correct cell cancels golden mode
           set({ isGoldenMode: false, selectedIndex: idx });
@@ -112,7 +119,7 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
 
       const newBoard = [...board] as CellValue[];
       newBoard[selectedIndex] = value;
-      const nextBoard = newBoard as unknown as Board;
+      const nextBoard: Board = newBoard;
 
       const newErrors = new Set(get().errorIndices);
       const isCorrect = value === puzzle.solution[selectedIndex];
@@ -122,8 +129,12 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
         const newNotes = new Map(get().notesByCell);
         newNotes.delete(selectedIndex);
 
-        const completedBox = detectBoxCompletion(board, nextBoard, puzzle.solution);
-        const solved = isBoardSolved(nextBoard, puzzle.solution);
+        const completedBox = detectBoxCompletion(
+          board,
+          nextBoard,
+          puzzle.solution,
+        );
+        const solved = matchesSolution(nextBoard, puzzle.solution);
 
         set({
           board: nextBoard,
@@ -134,7 +145,8 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
 
         callbacks?.onCellCorrect?.(selectedIndex, value);
         if (solved) callbacks?.onPuzzleComplete?.();
-        else if (completedBox !== null) callbacks?.onBoxComplete?.(completedBox);
+        else if (completedBox !== null)
+          callbacks?.onBoxComplete?.(completedBox);
       } else {
         newErrors.add(selectedIndex);
         set({ board: nextBoard, errorIndices: newErrors });
@@ -179,7 +191,7 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
       newNotes.delete(selectedIndex);
 
       set({
-        board: newBoard as unknown as Board,
+        board: newBoard,
         errorIndices: newErrors,
         notesByCell: newNotes,
       });
@@ -216,20 +228,24 @@ export function createSudokuGameStore(opts: SudokuGameOptions) {
       const { silverRemaining, board } = get();
       if (silverRemaining <= 0) return;
 
-      const result = revealGoldenCell(board, puzzle.solution, rng);
+      const result = revealRandomCell(board, puzzle.solution, rng);
       if (result === null) return;
 
       const newBoard = [...board] as CellValue[];
       newBoard[result.idx] = result.value;
-      const nextBoard = newBoard as unknown as Board;
+      const nextBoard: Board = newBoard;
 
       const newErrors = new Set(get().errorIndices);
       newErrors.delete(result.idx);
       const newNotes = new Map(get().notesByCell);
       newNotes.delete(result.idx);
 
-      const completedBox = detectBoxCompletion(board, nextBoard, puzzle.solution);
-      const solved = isBoardSolved(nextBoard, puzzle.solution);
+      const completedBox = detectBoxCompletion(
+        board,
+        nextBoard,
+        puzzle.solution,
+      );
+      const solved = matchesSolution(nextBoard, puzzle.solution);
 
       set({
         board: nextBoard,

@@ -37,7 +37,7 @@ export function pickHintCell(
 
 // Reveals the exact value for a randomly chosen unsolved cell.
 // Returns null if the board is already complete.
-export function revealGoldenCell(
+export function revealRandomCell(
   board: Board,
   solution: Board,
   rng: Rng,

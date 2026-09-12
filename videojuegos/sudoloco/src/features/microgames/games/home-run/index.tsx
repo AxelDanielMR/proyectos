@@ -3,10 +3,18 @@ import { TapTimingGame } from '../../kit/templates/TapTimingGame';
 import type { Microgame, MicrogameProps } from '../../types';
 import { buildConfig } from './config';
 
-const HomeRun: React.FC<MicrogameProps> = ({ difficulty, rng, onResult, onReveal }) => {
-  // Config fija por partida: consumir el rng una sola vez.
+const HomeRun: React.FC<MicrogameProps> = ({
+  difficulty,
+  rng,
+  onResult,
+  onReveal,
+}) => {
+  // Config fija por partida: consumir el rng una sola vez (ver fishing/index.tsx).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const config = useMemo(() => buildConfig(difficulty, rng), []);
-  return <TapTimingGame config={config} onResult={onResult} onReveal={onReveal} />;
+  return (
+    <TapTimingGame config={config} onResult={onResult} onReveal={onReveal} />
+  );
 };
 
 export const homeRun: Microgame = {
@@ -19,6 +27,11 @@ export const homeRun: Microgame = {
   instructions: [
     { hand: 'pointer', durationMs: 500 },
     { hand: 'clicking', move: { dx: -22, dy: 0 }, durationMs: 400 },
-    { hand: 'clicking', particles: true, move: { dx: 45, dy: 0 }, durationMs: 300 },
+    {
+      hand: 'clicking',
+      particles: true,
+      move: { dx: 45, dy: 0 },
+      durationMs: 300,
+    },
   ],
 };

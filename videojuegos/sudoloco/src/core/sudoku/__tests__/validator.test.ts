@@ -1,4 +1,11 @@
-import { validateMove, isValid, isBoardSolved, cellInfo, BOX_CELLS } from '../validator';
+import {
+  validateMove,
+  isValid,
+  matchesSolution,
+  cellInfo,
+  getPeers,
+  BOX_CELLS,
+} from '../validator';
 import type { Board } from '../types';
 
 const EMPTY: Board = new Array(81).fill(0) as Board;
@@ -44,6 +51,26 @@ describe('BOX_CELLS', () => {
       expect(cells).toHaveLength(9);
     }
   });
+  it('matches cellInfo(idx).box for every one of the 81 cells (catches off-by-one in the middle boxes)', () => {
+    for (let box = 0; box < 9; box++) {
+      for (const idx of BOX_CELLS[box]!) {
+        expect(cellInfo(idx).box).toBe(box);
+      }
+    }
+  });
+});
+
+describe('getPeers', () => {
+  it('returns the 20 peers of a cell (8 row + 8 col + 4 remaining box, no double-count)', () => {
+    expect(getPeers(0).size).toBe(20);
+  });
+  it('never includes the cell itself', () => {
+    expect(getPeers(40).has(40)).toBe(false);
+  });
+  it('returns an empty set for an out-of-range index instead of throwing', () => {
+    expect(getPeers(-1).size).toBe(0);
+    expect(getPeers(81).size).toBe(0);
+  });
 });
 
 describe('isValid', () => {
@@ -74,6 +101,23 @@ describe('isValid', () => {
     (board as number[])[40] = 5; // center, not peer of idx 0
     expect(isValid(board, 0, 5)).toBe(true);
   });
+
+  it('does not conflict with itself when the cell already holds that value', () => {
+    // Re-placing the same value on an already-filled cell must not read as a
+    // conflict against itself (buildPeers excludes j === i).
+    expect(isValid(SOLVED, 0, SOLVED[0]!)).toBe(true);
+  });
+
+  it('rejects an out-of-range index instead of throwing', () => {
+    expect(isValid(EMPTY, -1, 5)).toBe(false);
+    expect(isValid(EMPTY, 81, 5)).toBe(false);
+    expect(isValid(EMPTY, 1.5, 5)).toBe(false);
+  });
+
+  it('rejects an out-of-range value', () => {
+    expect(isValid(EMPTY, 0, 55 as never)).toBe(false);
+    expect(isValid(EMPTY, 0, -1 as never)).toBe(false);
+  });
 });
 
 describe('validateMove', () => {
@@ -93,7 +137,7 @@ describe('validateMove', () => {
 
   it('detects multiple conflicts', () => {
     const board = [...EMPTY] as Board;
-    (board as number[])[1] = 9;  // row conflict
+    (board as number[])[1] = 9; // row conflict
     (board as number[])[27] = 9; // col conflict (col 0, row 3)
     const result = validateMove(board, 0, 9);
     expect(result.valid).toBe(false);
@@ -105,20 +149,31 @@ describe('validateMove', () => {
     const result = validateMove(SOLVED, 0, 0);
     expect(result.valid).toBe(true);
   });
+
+  it('rejects an out-of-range index instead of throwing', () => {
+    expect(validateMove(EMPTY, -1, 5)).toEqual({
+      valid: false,
+      conflictsWith: [],
+    });
+    expect(validateMove(EMPTY, 81, 5)).toEqual({
+      valid: false,
+      conflictsWith: [],
+    });
+  });
 });
 
-describe('isBoardSolved', () => {
+describe('matchesSolution', () => {
   it('returns true when board matches solution', () => {
-    expect(isBoardSolved(SOLVED, SOLVED)).toBe(true);
+    expect(matchesSolution(SOLVED, SOLVED)).toBe(true);
   });
 
   it('returns false when board is empty', () => {
-    expect(isBoardSolved(EMPTY, SOLVED)).toBe(false);
+    expect(matchesSolution(EMPTY, SOLVED)).toBe(false);
   });
 
   it('returns false when one cell differs', () => {
     const board = [...SOLVED] as Board;
     (board as number[])[0] = 1; // wrong value
-    expect(isBoardSolved(board, SOLVED)).toBe(false);
+    expect(matchesSolution(board, SOLVED)).toBe(false);
   });
 });

@@ -1,43 +1,81 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { Text } from '@ui/primitives/Text';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSudolocoStore } from './store';
 import { LivesDisplay, TimerDisplay, ScoreDisplay } from './ui/HUD';
-import { SudokuGame } from '@ui/SudokuGame';
-import { createSudokuGameStore } from '@ui/SudokuGame';
+import { SudokuGame, createSudokuGameStore } from '@ui/SudokuGame';
+
 import type { SudokuGameStore } from '@ui/SudokuGame';
-import { numbersPack } from '@core/symbols';
+import { numbersPack } from '@ui/symbols';
 import { rollReward } from '@core/sudoku';
 import type { Reward } from '@core/sudoku';
 import { colors } from '@theme/colors';
-import { useAuthStore } from '@features/auth';
+import { useAuthStore, userKeys } from '@features/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { settleRun } from '@services/firebase/users.repo';
-import { userKeys } from '@features/auth';
+
 import { loadSave, clearSave } from './save.storage';
 import { deserializeRun, type SavedRun, type RestoredRun } from './save';
 import { useAutoSave, snapshotSave } from './useAutoSave';
-import { MicrogameRunner, listMicrogames, pickMicrogame, levelToDifficulty } from '@features/microgames';
+import {
+  MicrogameRunner,
+  listMicrogames,
+  pickMicrogame,
+  levelToDifficulty,
+} from '@features/microgames';
 import type { Microgame } from '@features/microgames';
 import { RewardReveal } from './ui/RewardReveal';
 
 export function SudolocoScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const {
-    phase, level, lives, crystalHearts, timeRemaining, score,
-    hints, silverCells, goldenCells, coinsEarned, puzzle, rng, seed,
-    startRun, restoreRun, onCellCorrect, onCellIncorrect, onBoxComplete,
-    onPuzzleComplete, tick, nextLevel, exitMicrogame, loseMicrogame, pendingReward, beginReveal, finishReveal,
-    resetRun, pauseRun, resumeRun, settled, markSettled,
+    phase,
+    level,
+    lives,
+    crystalHearts,
+    timeRemaining,
+    score,
+    hints,
+    silverCells,
+    goldenCells,
+    coinsEarned,
+    puzzle,
+    rng,
+    seed,
+    startRun,
+    restoreRun,
+    onCellCorrect,
+    onCellIncorrect,
+    onBoxComplete,
+    onPuzzleComplete,
+    tick,
+    nextLevel,
+    exitMicrogame,
+    loseMicrogame,
+    pendingReward,
+    beginReveal,
+    finishReveal,
+    resetRun,
+    pauseRun,
+    resumeRun,
+    settled,
+    markSettled,
   } = useSudolocoStore();
 
   // undefined = aún no revisado; null = revisado, sin save; SavedRun = hay save.
-  const [pendingSave, setPendingSave] = useState<SavedRun | null | undefined>(undefined);
+  const [pendingSave, setPendingSave] = useState<SavedRun | null | undefined>(
+    undefined,
+  );
   const [gameStore, setGameStore] = useState<SudokuGameStore | null>(null);
   // bootstrap async terminado: el efecto del puzzle no construye hasta entonces,
   // para no crear un tablero fresco antes de que resuelva loadSave (AsyncStorage).
@@ -50,6 +88,9 @@ export function SudolocoScreen() {
   // Al montar: cargar save (async). En idle, esperar decisión (Continuar/Nueva) o
   // iniciar. Si la ruta se re-monta a media run (el gameStore local se perdió al
   // desmontar), recuperar el tablero desde el save del disco para no perder progreso.
+  // Deliberadamente solo-al-montar: lee phase/seed/level/startRun una única vez para
+  // decidir cómo arrancar; no debe re-ejecutarse si esos valores cambian después
+  // (eso re-dispararía la carga del save o un startRun espurio a media partida).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -66,10 +107,15 @@ export function SudolocoScreen() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Construir el game store cuando cambia el puzzle (inicio, nextLevel o restore).
   // Gated en `bootstrapped` para que el re-montaje recupere el tablero del save.
+  // hints/silverCells/goldenCells y los callbacks solo sirven de semilla inicial
+  // del store nuevo — sincronizarlos después es trabajo de los efectos de abajo
+  // (grantHints/grantSilverCells/grantGoldenCells). Deliberadamente NO están en las
+  // deps: incluirlos reconstruiría el tablero cada vez que cambia un contador.
   useEffect(() => {
     if (!bootstrapped || !puzzle || !rng) return;
     const restore = restoreDataRef.current;
@@ -91,16 +137,20 @@ export function SudolocoScreen() {
       },
     });
     setGameStore(store);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle, bootstrapped]);
 
   // Persistir highscore + monedas y limpiar el save al terminar la run. El flag
   // `settled` vive en el run store (singleton), así que sobrevive a un re-montaje
   // de la ruta y evita canjear las monedas dos veces.
+  //
+  // `user` está en la guarda (no solo en las deps): si el auth listener aún no
+  // resolvió cuando la run termina, este efecto debe reintentar cuando `user`
+  // aparezca, en vez de marcar `settled` y perder la recompensa para siempre.
   useEffect(() => {
-    if (phase !== 'gameover' || settled) return;
+    if (phase !== 'gameover' || settled || !user) return;
     markSettled();
     void clearSave();
-    if (!user) return;
     settleRun(
       user.uid,
       { email: user.email ?? '', displayName: user.displayName ?? '' },
@@ -110,7 +160,7 @@ export function SudolocoScreen() {
         qc.invalidateQueries({ queryKey: userKeys.profile(user.uid) });
       })
       .catch((err) => console.warn('[sudoloco] settleRun falló:', err));
-  }, [phase]);
+  }, [phase, settled, user, score, coinsEarned, qc, markSettled]);
 
   // Sync power-ups otorgados mid-run hacia el game store.
   useEffect(() => {
@@ -146,7 +196,9 @@ export function SudolocoScreen() {
     }
   }, [phase, rng, level]);
 
-  const [activeMicrogame, setActiveMicrogame] = useState<Microgame | null>(null);
+  const [activeMicrogame, setActiveMicrogame] = useState<Microgame | null>(
+    null,
+  );
   useEffect(() => {
     if (phase === 'microgame' && rng) {
       // discoveredIds: la persistencia de descubiertos llega con el menú (fuera de alcance).
@@ -191,14 +243,22 @@ export function SudolocoScreen() {
       return (
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           <View style={styles.center}>
-            <Text style={styles.title}>Partida en curso</Text>
-            <Text style={styles.finalScore}>Nivel {pendingSave.level}</Text>
-            <Text style={styles.finalScore}>Score: {pendingSave.score.toLocaleString()}</Text>
+            <Text style={styles.title}>{t('sudoloco.inProgress')}</Text>
+            <Text style={styles.finalScore}>
+              {t('sudoloco.levelLabel', { level: pendingSave.level })}
+            </Text>
+            <Text style={styles.finalScore}>
+              {t('sudoloco.scoreLabel', {
+                score: pendingSave.score.toLocaleString(),
+              })}
+            </Text>
             <Pressable style={styles.startBtn} onPress={handleContinue}>
-              <Text style={styles.startBtnText}>Continuar</Text>
+              <Text style={styles.startBtnText}>{t('common.continue')}</Text>
             </Pressable>
             <Pressable style={styles.secondaryBtn} onPress={handleNewGame}>
-              <Text style={styles.secondaryBtnText}>Empezar de nuevo</Text>
+              <Text style={styles.secondaryBtnText}>
+                {t('sudoloco.newGame')}
+              </Text>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -211,10 +271,16 @@ export function SudolocoScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
-          <Text style={styles.gameoverTitle}>Game Over</Text>
-          <Text style={styles.finalScore}>Score: {score.toLocaleString()}</Text>
-          <Text style={styles.finalScore}>Nivel: {level}</Text>
-          <Text style={styles.coins}>+{coinsEarned} monedas</Text>
+          <Text style={styles.gameoverTitle}>{t('sudoloco.gameOver')}</Text>
+          <Text style={styles.finalScore}>
+            {t('sudoloco.scoreLabel', { score: score.toLocaleString() })}
+          </Text>
+          <Text style={styles.finalScore}>
+            {t('sudoloco.levelLabelColon', { level })}
+          </Text>
+          <Text style={styles.coins}>
+            {t('sudoloco.coinsEarned', { count: coinsEarned })}
+          </Text>
           <Pressable
             style={styles.startBtn}
             onPress={() => {
@@ -222,7 +288,7 @@ export function SudolocoScreen() {
               router.replace('/(tabs)/home');
             }}
           >
-            <Text style={styles.startBtnText}>Volver al menú</Text>
+            <Text style={styles.startBtnText}>{t('sudoloco.backToMenu')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -233,10 +299,14 @@ export function SudolocoScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
-          <Text style={styles.title}>¡Nivel {level} completado!</Text>
-          <Text style={styles.bonusText}>+60 segundos</Text>
+          <Text style={styles.title}>
+            {t('sudoloco.levelComplete', { level })}
+          </Text>
+          <Text style={styles.bonusText}>
+            {t('sudoloco.timeBonus', { seconds: 60 })}
+          </Text>
           <Pressable style={styles.startBtn} onPress={() => nextLevel()}>
-            <Text style={styles.startBtnText}>Siguiente nivel</Text>
+            <Text style={styles.startBtnText}>{t('sudoloco.nextLevel')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -255,10 +325,17 @@ export function SudolocoScreen() {
         showHintButton={hints > 0}
         showSilverButton={silverCells > 0}
         showGoldenButton={goldenCells > 0}
-        template={{ backgroundId: 'base', urgency, paused: phase !== 'playing' }}
+        template={{
+          backgroundId: 'base',
+          urgency,
+          paused: phase !== 'playing',
+        }}
       />
 
-      <View style={[styles.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+      <View
+        style={[styles.hud, { paddingTop: insets.top + 8 }]}
+        pointerEvents="box-none"
+      >
         <LivesDisplay lives={lives} crystalHearts={crystalHearts} />
         <TimerDisplay timeRemaining={timeRemaining} />
         <View style={styles.hudRight}>
@@ -271,16 +348,16 @@ export function SudolocoScreen() {
 
       {phase === 'paused' && (
         <View style={styles.overlay} pointerEvents="auto">
-          <Text style={styles.overlayTitle}>⏸️ Pausa</Text>
+          <Text style={styles.overlayTitle}>{t('sudoloco.paused')}</Text>
           <Pressable style={styles.startBtn} onPress={handleResume}>
-            <Text style={styles.startBtnText}>Continuar</Text>
+            <Text style={styles.startBtnText}>{t('common.continue')}</Text>
           </Pressable>
           <Pressable style={styles.secondaryBtn} onPress={handleManualSave}>
             <Text style={styles.secondaryBtnText}>
-              {savedFlash ? '¡Guardado! ✓' : 'Guardar'}
+              {savedFlash ? t('sudoloco.saved') : t('common.save')}
             </Text>
           </Pressable>
-          <Text style={styles.autosaveHint}>Tu progreso se guarda automáticamente</Text>
+          <Text style={styles.autosaveHint}>{t('sudoloco.autosaveHint')}</Text>
         </View>
       )}
 
@@ -335,8 +412,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.base,
     gap: 20,
   },
-  title: { fontSize: 32, fontWeight: '900', color: colors.text.primary, letterSpacing: 2 },
-  gameoverTitle: { fontSize: 40, fontWeight: '900', color: colors.state.danger },
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.text.primary,
+    letterSpacing: 2,
+  },
+  gameoverTitle: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: colors.state.danger,
+  },
   finalScore: { fontSize: 22, fontWeight: '700', color: colors.text.primary },
   coins: { fontSize: 18, fontWeight: '600', color: colors.brand.accent },
   bonusText: { fontSize: 18, fontWeight: '600', color: colors.state.success },
@@ -354,8 +440,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.brand.primary,
   },
-  secondaryBtnText: { fontSize: 16, fontWeight: '700', color: colors.brand.primary },
-  autosaveHint: { fontSize: 12, color: colors.text.secondary, opacity: 0.8, marginTop: 4 },
+  secondaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.brand.primary,
+  },
+  autosaveHint: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    opacity: 0.8,
+    marginTop: 4,
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.85)',

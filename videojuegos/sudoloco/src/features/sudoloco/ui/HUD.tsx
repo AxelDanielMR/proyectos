@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Text } from '@ui/primitives/Text';
 import { colors } from '@theme/colors';
 import { actionIcons } from '@ui/icons';
@@ -9,15 +10,28 @@ interface LivesDisplayProps {
   crystalHearts: number;
 }
 
-export const LivesDisplay = React.memo(function LivesDisplay({ lives, crystalHearts }: LivesDisplayProps) {
+export const LivesDisplay = React.memo(function LivesDisplay({
+  lives,
+  crystalHearts,
+}: LivesDisplayProps) {
   // Vidas dinámicas: se dibuja un corazón por vida actual (sin tope de 3).
   return (
     <View style={styles.livesRow}>
       {Array.from({ length: Math.max(0, lives) }, (_, i) => (
-        <Image key={i} source={actionIcons.heart} style={styles.heart} resizeMode="contain" />
+        <Image
+          key={i}
+          source={actionIcons.heart}
+          style={styles.heart}
+          resizeMode="contain"
+        />
       ))}
       {Array.from({ length: crystalHearts }, (_, i) => (
-        <Image key={`c-${i}`} source={actionIcons.frozenHeart} style={styles.crystalHeart} resizeMode="contain" />
+        <Image
+          key={`c-${i}`}
+          source={actionIcons.frozenHeart}
+          style={styles.crystalHeart}
+          resizeMode="contain"
+        />
       ))}
     </View>
   );
@@ -27,7 +41,9 @@ interface TimerDisplayProps {
   timeRemaining: number;
 }
 
-export const TimerDisplay = React.memo(function TimerDisplay({ timeRemaining }: TimerDisplayProps) {
+export const TimerDisplay = React.memo(function TimerDisplay({
+  timeRemaining,
+}: TimerDisplayProps) {
   const mins = Math.floor(timeRemaining / 60);
   const secs = timeRemaining % 60;
   const label = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
@@ -45,10 +61,16 @@ interface ScoreDisplayProps {
   level: number;
 }
 
-export const ScoreDisplay = React.memo(function ScoreDisplay({ score, level }: ScoreDisplayProps) {
+export const ScoreDisplay = React.memo(function ScoreDisplay({
+  score,
+  level,
+}: ScoreDisplayProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.scoreBox}>
-      <Text style={styles.levelLabel}>Nv {level}</Text>
+      <Text style={styles.levelLabel}>
+        {t('sudoloco.levelShort', { level })}
+      </Text>
       <Text style={styles.scoreText}>{score.toLocaleString()}</Text>
     </View>
   );

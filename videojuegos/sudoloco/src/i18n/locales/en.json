@@ -83,5 +83,26 @@
       "tap-timing": "Timing",
       "tap-spam": "Mash"
     }
+  },
+  "sudoloco": {
+    "inProgress": "Game in progress",
+    "newGame": "Start over",
+    "levelLabel": "Level {{level}}",
+    "levelLabelColon": "Level: {{level}}",
+    "levelShort": "Lv {{level}}",
+    "scoreLabel": "Score: {{score}}",
+    "gameOver": "Game Over",
+    "backToMenu": "Back to menu",
+    "levelComplete": "Level {{level}} complete!",
+    "timeBonus": "+{{seconds}} seconds",
+    "nextLevel": "Next level",
+    "paused": "⏸️ Paused",
+    "saved": "Saved! ✓",
+    "autosaveHint": "Your progress saves automatically",
+    "coinsEarned_one": "+{{count}} coin",
+    "coinsEarned_other": "+{{count}} coins"
+  },
+  "sudokuGame": {
+    "tapToReveal": "✨ Tap a cell to reveal it ✕"
   }
 }

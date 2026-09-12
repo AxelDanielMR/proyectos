@@ -16,8 +16,7 @@ const firebaseConfig = {
   databaseURL: env.EXPO_PUBLIC_FIREBASE_DATABASE_URL,
 };
 
-export const app: FirebaseApp =
-  getApps()[0] ?? initializeApp(firebaseConfig);
+export const app: FirebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 
 function buildAuth(): Auth {
   // getReactNativePersistence is present at runtime in firebase/auth but absent
@@ -39,4 +38,16 @@ function buildAuth(): Auth {
 
 export const auth: Auth = buildAuth();
 export const firestore: Firestore = getFirestore(app);
+
+if (!env.EXPO_PUBLIC_FIREBASE_DATABASE_URL) {
+  // getDatabase() doesn't throw without a databaseURL — it *guesses* one from
+  // projectId (https://<projectId>-default-rtdb.firebaseio.com), which is
+  // wrong for any RTDB instance outside the default region. Versus Mar reads
+  // and writes through this client, so a silent wrong host there means games
+  // just don't sync — set EXPO_PUBLIC_FIREBASE_DATABASE_URL before building it.
+  console.warn(
+    '[firebase] EXPO_PUBLIC_FIREBASE_DATABASE_URL no está seteada — realtimeDb usará ' +
+      'la URL inferida por el SDK, que puede no ser tu instancia real si no está en la región por defecto.',
+  );
+}
 export const realtimeDb: Database = getDatabase(app);

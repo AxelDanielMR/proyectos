@@ -1,5 +1,4 @@
-import type { Board, CellValue, Puzzle } from '@core/sudoku';
-import type { Rng } from '@core/sudoku';
+import type { Board, CellValue, Puzzle, Rng } from '@core/sudoku';
 
 export interface SudokuGameCallbacks {
   onCellCorrect?: (idx: number, value: CellValue) => void;

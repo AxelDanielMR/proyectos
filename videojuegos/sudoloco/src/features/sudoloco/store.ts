@@ -1,18 +1,24 @@
 import { create } from 'zustand';
-import { createRng, generate, levelConfig, INITIAL_TIME_S, buildPuzzleSeed } from '@core/sudoku';
-import type { Puzzle } from '@core/sudoku';
-import { computeRunReward } from '@core/sudoku';
-import type { Rng } from '@core/sudoku';
-import type { Reward } from '@core/sudoku';
+import {
+  createRng,
+  generate,
+  levelConfig,
+  INITIAL_TIME_S,
+  buildPuzzleSeed,
+  computeRunReward,
+} from '@core/sudoku';
+import type { Puzzle, Rng, Reward } from '@core/sudoku';
+
 import type { RestoredRun } from './save';
 
-export type RunPhase = 'idle' | 'playing' | 'paused' | 'microgame' | 'between_levels' | 'gameover';
+export type RunPhase =
+  'idle' | 'playing' | 'paused' | 'microgame' | 'between_levels' | 'gameover';
 
 export interface RunState {
   phase: RunPhase;
   previousPhase: RunPhase; // para reanudar desde pausa
   level: number;
-  lives: number;         // corazones normales (con ventajas)
+  lives: number; // corazones normales (con ventajas)
   crystalHearts: number; // corazones de cristal (sin ventajas)
   timeRemaining: number;
   score: number;
@@ -116,7 +122,10 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     if (phase !== 'playing') return;
     const { secsPerCell } = levelConfig(level);
     const multiplier = Math.floor(level / 5) + 1;
-    set((s) => ({ timeRemaining: s.timeRemaining + secsPerCell, score: score + 10 * multiplier }));
+    set((s) => ({
+      timeRemaining: s.timeRemaining + secsPerCell,
+      score: score + 10 * multiplier,
+    }));
     void idx;
   },
 
@@ -185,7 +194,9 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     switch (reward.kind) {
       case 'time_boost': {
         const { level } = get();
-        set((s) => ({ timeRemaining: s.timeRemaining + timeBoostSeconds(level) }));
+        set((s) => ({
+          timeRemaining: s.timeRemaining + timeBoostSeconds(level),
+        }));
         break;
       }
       case 'hint':
@@ -232,7 +243,10 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     if (get().phase !== 'microgame') return;
     const { level } = get();
     const consolation = Math.floor(timeBoostSeconds(level) / 2);
-    set((s) => ({ timeRemaining: s.timeRemaining + consolation, phase: 'playing' }));
+    set((s) => ({
+      timeRemaining: s.timeRemaining + consolation,
+      phase: 'playing',
+    }));
   },
 
   nextLevel() {
@@ -241,7 +255,13 @@ export const useSudolocoStore = create<RunState & RunActions>()((set, get) => ({
     const nextLevel = level + 1;
     const { difficulty } = levelConfig(nextLevel);
     const puzzle = generate(difficulty, buildPuzzleSeed(seed, nextLevel));
-    set((s) => ({ level: nextLevel, puzzle, phase: 'playing', rng, timeRemaining: s.timeRemaining + 60 }));
+    set((s) => ({
+      level: nextLevel,
+      puzzle,
+      phase: 'playing',
+      rng,
+      timeRemaining: s.timeRemaining + 60,
+    }));
   },
 
   resetRun() {

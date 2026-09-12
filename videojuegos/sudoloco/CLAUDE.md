@@ -44,7 +44,7 @@ Todos los modos comparten el mismo motor. **Nunca reimplementes lógica de jugar
 │  + hints.ts (pendiente):                                     │
 │      revealCandidate(board, sol, idx) → CellValue[]          │
 │      pickHintCell(board, sol, rng)    → index                │
-│      revealGoldenCell(board, sol, rng) → { idx, value }      │
+│      revealRandomCell(board, sol, rng) → { idx, value }      │
 │  src/core/symbols/  packs (4 en scope: numbers, colors,      │
 │                            figures, sprites)                 │
 └──────────────────────────────────────────────────────────────┘
@@ -74,7 +74,7 @@ Todos los modos comparten el mismo motor. **Nunca reimplementes lógica de jugar
 
 ## Stack (resumen)
 
-Expo SDK 54 · RN 0.81 · React 19 · TS estricto (`noUncheckedIndexedAccess`) · Expo Router (file-based, `typedRoutes`) · NativeWind 4 · Reanimated 4 · Zustand (una store por feature) · TanStack Query (datos remotos) · Firebase Spark (Auth + Firestore + RTDB + Storage) — **sin Cloud Functions** · Zod (validación runtime) · MMKV + SecureStore · i18next.
+Expo SDK 54 · RN 0.81 · React 19 · TS estricto (`noUncheckedIndexedAccess`) · Expo Router (file-based, `typedRoutes`) · NativeWind 4 · Reanimated 4 · Zustand (una store por feature) · TanStack Query (datos remotos) · Firebase Spark (Auth + Firestore + RTDB + Storage) — **sin Cloud Functions** · Zod (validación runtime) · AsyncStorage + SecureStore (MMKV estaba en el plan original pero no se instaló) · i18next.
 
 ## Reglas de oro (no romper)
 
@@ -85,7 +85,7 @@ Expo SDK 54 · RN 0.81 · React 19 · TS estricto (`noUncheckedIndexedAccess`) �
 5. Estado remoto → React Query. Estado de UI → Zustand. No mezclar.
 6. Validar al entrar: datos de Firestore pasan por Zod antes de tipearlos.
 7. i18n desde el día 1 — sin strings literales en JSX.
-8. Sin comentarios salvo cuando el *por qué* no sea obvio. Nombres descriptivos > comentarios.
+8. Sin comentarios salvo cuando el _por qué_ no sea obvio. Nombres descriptivos > comentarios.
 
 ## Path aliases
 
@@ -118,7 +118,7 @@ src/theme/colors.ts · src/i18n/ · src/lib/env.ts
 ## Estado actual (verificar con git si tienes dudas)
 
 - **Fase 0 ✅** Infraestructura completa (Expo Router, NativeWind, Firebase client, i18n, providers, tipos, lint/format).
-- **Fase 1 ✅** Núcleo Sudoku completo, 61 tests Jest pasando (prng, validator, solver, generator, difficulty, progress).
+- **Fase 1 ✅** Núcleo Sudoku completo, 152 tests Jest pasando (prng, validator, solver, generator, difficulty, progress, hints, rewards, economy, progression, symbols).
 - **Fase 2 ✅** UI base del tablero (`Board`, `Cell`, `NumberPad`, `ProgressBar`).
 - **UI menú principal ⏸️** En pausa con avances. `home.tsx` con título, 4 botones pixel-art y `SudokuBackground` (cascada de números reactiva al acelerómetro). Pendiente: conectar navegación de botones, tipografía pixel, decidir reutilización del fondo, pausar acelerómetro al perder foco.
 - **Fase 3 — siguiente.** Modo Sudoloco (roguelike). **📋 [Plan detallado](docs/superpowers/plans/2026-05-31-fase-3-sudoloco-roguelike.md)** — 16 tareas TDD (core puro, motor compartido SudokuGame, Sudoloco screen + HUD).

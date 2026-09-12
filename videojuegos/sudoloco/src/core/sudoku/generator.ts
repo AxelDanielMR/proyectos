@@ -3,7 +3,7 @@ import type { Rng } from './prng';
 import { createRng, shuffled } from './prng';
 import { isValid } from './validator';
 import { countSolutions } from './solver';
-import { getClueCount } from './difficulty';
+import { getClueCount, getClueRange } from './difficulty';
 
 type MutableBoard = CellValue[];
 
@@ -60,10 +60,49 @@ function removeCells(solution: Board, toRemove: number, rng: Rng): Board {
   return board as Board;
 }
 
+function countClues(board: Board): number {
+  return board.reduce<number>(
+    (total, value) => total + (value !== 0 ? 1 : 0),
+    0,
+  );
+}
+
+// A single dig pass over one solution grid can stall short of `toRemove`:
+// once a cell's removal would break uniqueness for the *current* board, it
+// stays filled — and retrying it later, after other cells are already gone,
+// only makes that harder (fewer filled cells means more room for an
+// alternate solution), never easier. So instead of reordering the same
+// grid, we regenerate a fresh solution grid from a derived seed and dig
+// again, keeping the best (closest-to-target) attempt in case every retry
+// misses the range.
+const MAX_GENERATE_ATTEMPTS = 20;
+
 export function generate(difficulty: Difficulty, seed: string): Puzzle {
-  const rng = createRng(seed);
-  const solution = generateSolution(rng);
-  const clueCount = getClueCount(difficulty, rng);
-  const initial = removeCells(solution, 81 - clueCount, rng);
-  return { seed, difficulty, initial, solution };
+  const { min, max } = getClueRange(difficulty);
+
+  let best: { initial: Board; solution: Board } | null = null;
+  let bestDistance = Infinity;
+
+  for (let attempt = 0; attempt < MAX_GENERATE_ATTEMPTS; attempt++) {
+    const attemptSeed = attempt === 0 ? seed : `${seed}#${attempt}`;
+    const rng = createRng(attemptSeed);
+    const solution = generateSolution(rng);
+    const clueCount = getClueCount(difficulty, rng);
+    const initial = removeCells(solution, 81 - clueCount, rng);
+
+    const actualClues = countClues(initial);
+    if (actualClues >= min && actualClues <= max) {
+      return { seed, difficulty, initial, solution };
+    }
+
+    const distance = actualClues < min ? min - actualClues : actualClues - max;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = { initial, solution };
+    }
+  }
+
+  // Every attempt missed the target range — return the closest one rather
+  // than silently accepting whatever the last attempt happened to produce.
+  return { seed, difficulty, initial: best!.initial, solution: best!.solution };
 }

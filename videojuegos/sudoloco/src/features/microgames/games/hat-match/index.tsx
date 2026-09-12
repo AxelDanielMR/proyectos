@@ -3,9 +3,18 @@ import { DragMatchGame } from '../../kit/templates/DragMatchGame';
 import type { Microgame, MicrogameProps } from '../../types';
 import { buildConfig } from './config';
 
-const HatMatch: React.FC<MicrogameProps> = ({ difficulty, rng, onResult, onReveal }) => {
+const HatMatch: React.FC<MicrogameProps> = ({
+  difficulty,
+  rng,
+  onResult,
+  onReveal,
+}) => {
+  // Config fija por partida: consumir el rng una sola vez (ver fishing/index.tsx).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const config = useMemo(() => buildConfig(difficulty, rng), []);
-  return <DragMatchGame config={config} onResult={onResult} onReveal={onReveal} />;
+  return (
+    <DragMatchGame config={config} onResult={onResult} onReveal={onReveal} />
+  );
 };
 
 export const hatMatch: Microgame = {

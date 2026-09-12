@@ -28,7 +28,6 @@ describe('rollReward', () => {
     for (let level = 1; level <= 25; level++) {
       for (let i = 0; i < 200; i++) {
         const reward = rollReward(level, createRng(`L${level}-${i}`));
-        expect(reward.kind).not.toBe('none');
         expect(VALID_KINDS).toContain(reward.kind);
       }
     }

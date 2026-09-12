@@ -17,6 +17,9 @@ function detectLanguage(): SupportedLanguage {
     : FALLBACK;
 }
 
+// i18next's default export legitimately has a `.use` method — this isn't the
+// package's named export `use`.
+// eslint-disable-next-line import/no-named-as-default-member
 void i18n.use(initReactI18next).init({
   resources: {
     es: { translation: es },

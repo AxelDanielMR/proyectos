@@ -1,11 +1,23 @@
 import { z } from 'zod';
-import { createRng, generate, levelConfig, buildPuzzleSeed } from '@core/sudoku';
+import {
+  createRng,
+  generate,
+  levelConfig,
+  buildPuzzleSeed,
+} from '@core/sudoku';
 import type { Board, CellValue, Puzzle, Rng } from '@core/sudoku';
 
 export const SAVE_VERSION = 1 as const;
 
-const cellValueSchema = z.number().int().min(0).max(9);
-const noteValueSchema = z.number().int().min(1).max(9);
+// Typed as CellValue (not plain number) so downstream code — the board
+// array, the notes map — carries the real domain type instead of forcing
+// `as unknown as Board` casts at every consumer.
+const cellValueSchema = z.custom<CellValue>(
+  (v) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 9,
+);
+const noteValueSchema = z.custom<CellValue>(
+  (v) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 9,
+);
 const cellIndexSchema = z.number().int().min(0).max(80);
 
 export const SavedRunSchema = z.object({
@@ -65,7 +77,7 @@ export interface RestoredRun {
 
 export function serializeRun(params: SerializeParams, now: number): SavedRun {
   const { run, game } = params;
-  const notes: [number, number[]][] = [];
+  const notes: [number, CellValue[]][] = [];
   for (const [idx, set] of game.notesByCell) {
     if (set.size > 0) notes.push([idx, [...set]]);
   }
@@ -94,7 +106,7 @@ export function deserializeRun(saved: SavedRun): RestoredRun {
 
   const notesByCell = new Map<number, Set<CellValue>>();
   for (const [idx, values] of saved.notes) {
-    notesByCell.set(idx, new Set(values as CellValue[]));
+    notesByCell.set(idx, new Set(values));
   }
 
   return {
@@ -106,7 +118,7 @@ export function deserializeRun(saved: SavedRun): RestoredRun {
     score: saved.score,
     puzzle,
     rng,
-    board: saved.board as unknown as Board,
+    board: saved.board,
     notesByCell,
     errorIndices: new Set(saved.errorIndices),
     hintsRemaining: saved.hintsRemaining,

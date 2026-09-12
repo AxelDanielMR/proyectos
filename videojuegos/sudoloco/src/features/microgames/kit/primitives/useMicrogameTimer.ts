@@ -30,7 +30,9 @@ export function useMicrogameTimer(
       if (finished) runOnJS(fire)();
     });
     return () => cancelAnimation(progress);
-  }, [active, durationMs]);
+    // `progress` is a Reanimated SharedValue: its identity is stable across
+    // renders (like a ref), so including it can't cause extra re-runs.
+  }, [active, durationMs, progress]);
 
   return progress;
 }

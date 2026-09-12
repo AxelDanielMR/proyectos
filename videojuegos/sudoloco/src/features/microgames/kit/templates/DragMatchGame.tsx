@@ -3,8 +3,13 @@ import { StyleSheet, View, Image } from 'react-native';
 import { StageSizeContext } from '../primitives/MicrogameStage';
 import { Draggable } from '../primitives/Draggable';
 import { FrameBounce } from '../primitives/FrameBounce';
+import { useLatestRef } from '../primitives/useLatestRef';
 import { VisualView } from '../primitives/VisualView';
-import { resolveDrop, isMatchCorrect, type DropTargetHit } from './dragMatch.logic';
+import {
+  resolveDrop,
+  isMatchCorrect,
+  type DropTargetHit,
+} from './dragMatch.logic';
 import type { MicrogameResult, Visual } from '../../types';
 
 export interface DragMatchTargetConfig {
@@ -59,16 +64,23 @@ export function DragMatchGame({
     resolvedRef.current = true;
     onResult(r);
   };
+  const finishRef = useLatestRef(finish);
+  const onRevealRef = useLatestRef(onReveal);
 
   // El resultado se reporta al terminar la revelación (personajes bamboleándose),
   // no al detectarse — así el jugador alcanza a verla antes de que el runner cierre.
-  // `onReveal` congela el timer del runner mientras tanto (ver types.ts).
+  // `onReveal` congela el timer del runner mientras tanto (ver types.ts). Los
+  // callbacks van por ref: el efecto solo debe reiniciar el timeout cuando cambia
+  // `phase`, no cada vez que el padre pasa una nueva identidad de función.
   useEffect(() => {
     if (phase === 'playing') return;
-    onReveal?.();
-    const id = setTimeout(() => finish(phase), phase === 'win' ? WIN_REVEAL_MS : LOSE_REVEAL_MS);
+    onRevealRef.current?.();
+    const id = setTimeout(
+      () => finishRef.current(phase),
+      phase === 'win' ? WIN_REVEAL_MS : LOSE_REVEAL_MS,
+    );
     return () => clearTimeout(id);
-  }, [phase]);
+  }, [phase, finishRef, onRevealRef]);
 
   // Targets: fila inferior, repartidos horizontalmente.
   const targetY = height * 0.62;
@@ -87,7 +99,11 @@ export function DragMatchGame({
   const dragY = height * 0.12;
   const dragSlot = width / config.draggables.length;
 
-  const handleDrop = (draggable: DragMatchDraggableConfig, cx: number, cy: number) => {
+  const handleDrop = (
+    draggable: DragMatchDraggableConfig,
+    cx: number,
+    cy: number,
+  ) => {
     if (phase !== 'playing') return;
     const hit = resolveDrop(targetHits, cx, cy);
     if (hit === null) return; // no cayó en ningún target: no pasa nada, vuelve a su sitio
@@ -110,7 +126,9 @@ export function DragMatchGame({
       {config.targets.map((t, i) => {
         const revealFrames =
           phase === 'win'
-            ? (receivedItem(t.id) ? t.winWithItemFrames : t.winFrames)
+            ? receivedItem(t.id)
+              ? t.winWithItemFrames
+              : t.winFrames
             : phase === 'lose'
               ? t.loseFrames
               : undefined;
@@ -119,7 +137,10 @@ export function DragMatchGame({
             key={t.id}
             style={[
               styles.entity,
-              { left: targetSlot * i + (targetSlot - ENTITY) / 2, top: targetY },
+              {
+                left: targetSlot * i + (targetSlot - ENTITY) / 2,
+                top: targetY,
+              },
             ]}
           >
             {revealFrames ? (
@@ -169,7 +190,10 @@ function RevealPreload({ targets }: { targets: DragMatchTargetConfig[] }) {
   return (
     <View style={styles.preload} pointerEvents="none">
       {frames.map(
-        (v, i) => v.source && <Image key={i} source={v.source} style={styles.preloadImage} />,
+        (v, i) =>
+          v.source && (
+            <Image key={i} source={v.source} style={styles.preloadImage} />
+          ),
       )}
     </View>
   );

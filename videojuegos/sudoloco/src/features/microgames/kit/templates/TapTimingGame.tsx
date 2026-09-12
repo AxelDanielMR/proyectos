@@ -11,6 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { StageSizeContext } from '../primitives/MicrogameStage';
+import { useLatestRef } from '../primitives/useLatestRef';
 import { VisualView } from '../primitives/VisualView';
 import type { MicrogameResult, Visual } from '../../types';
 
@@ -68,6 +69,7 @@ export function TapTimingGame({
   };
 
   const miss = () => finish('lose');
+  const missRef = useLatestRef(miss);
 
   // Congela el trayecto normal donde esté y arranca el vuelo de home run; el
   // resultado se reporta al terminar esa animación, no al detectarse.
@@ -76,23 +78,39 @@ export function TapTimingGame({
     flyingRef.current = true;
     cancelAnimation(progress);
     onReveal?.();
-    flyT.value = withTiming(1, { duration: FLY_DURATION_MS, easing: Easing.in(Easing.quad) }, (done) => {
-      'worklet';
-      if (done) runOnJS(finish)('win');
-    });
+    flyT.value = withTiming(
+      1,
+      { duration: FLY_DURATION_MS, easing: Easing.in(Easing.quad) },
+      (done) => {
+        'worklet';
+        if (done) runOnJS(finish)('win');
+      },
+    );
   };
 
   useEffect(() => {
-    progress.value = withTiming(1, { duration: config.travelMs }, (finished) => {
-      'worklet';
-      if (finished) runOnJS(miss)();
-    });
+    const fireMiss = () => missRef.current();
+    progress.value = withTiming(
+      1,
+      { duration: config.travelMs },
+      (finished) => {
+        'worklet';
+        if (finished) runOnJS(fireMiss)();
+      },
+    );
     return () => cancelAnimation(progress);
-  }, []);
+    // `progress` (SharedValue) is stable; `missRef` gives the worklet callback
+    // the latest `miss` without needing `miss` itself (a new closure each
+    // render) in the deps, which would restart the ball's travel animation
+    // on every re-render instead of only once per game.
+  }, [config.travelMs, progress, missRef]);
 
   const pan = Gesture.Pan()
     .onChange((e) => {
-      batTx.value = Math.max(BAT_MIN_TX, Math.min(BAT_MAX_TX, batTx.value + e.changeX));
+      batTx.value = Math.max(
+        BAT_MIN_TX,
+        Math.min(BAT_MAX_TX, batTx.value + e.changeX),
+      );
       if (batTx.value <= SWING_THRESHOLD_PX) {
         batTx.value = withTiming(BAT_MIN_TX, { duration: 80 });
         runOnJS(swing)();
@@ -105,8 +123,11 @@ export function TapTimingGame({
   const ballStyle = useAnimatedStyle(() => {
     const p = progress.value;
     const baseX = p * (width - BALL);
-    const wave = Math.sin(p * config.waveFrequency * Math.PI * 2 + config.wavePhase);
-    const baseY = config.startYRatio * height + wave * config.waveAmplitudeRatio * height;
+    const wave = Math.sin(
+      p * config.waveFrequency * Math.PI * 2 + config.wavePhase,
+    );
+    const baseY =
+      config.startYRatio * height + wave * config.waveAmplitudeRatio * height;
 
     const flyX = flyT.value * width * FLY_DISTANCE_X_RATIO;
     const flyY = flyT.value * height * FLY_DISTANCE_Y_RATIO;
@@ -122,7 +143,10 @@ export function TapTimingGame({
   });
 
   const batterStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: batTx.value }, { rotate: `${batTx.value * 0.5}deg` }],
+    transform: [
+      { translateX: batTx.value },
+      { rotate: `${batTx.value * 0.5}deg` },
+    ],
   }));
 
   return (
@@ -153,6 +177,16 @@ export function TapTimingGame({
 }
 
 const styles = StyleSheet.create({
-  ball: { position: 'absolute', width: BALL, height: BALL, alignItems: 'center', justifyContent: 'center' },
-  swingZone: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  ball: {
+    position: 'absolute',
+    width: BALL,
+    height: BALL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swingZone: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

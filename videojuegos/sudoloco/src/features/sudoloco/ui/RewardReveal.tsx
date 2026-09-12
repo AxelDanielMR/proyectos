@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, Image, View, type ImageSourcePropType } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  Image,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -27,7 +33,13 @@ const ICON_SOURCE: Record<RewardIcon, ImageSourcePropType> = {
   frozenHeart: actionIcons.frozenHeart,
 };
 
-export function RewardReveal({ reward, onDone }: { reward: Reward; onDone: () => void }) {
+export function RewardReveal({
+  reward,
+  onDone,
+}: {
+  reward: Reward;
+  onDone: () => void;
+}) {
   const translateY = useSharedValue(BELOW);
   const opacity = useSharedValue(0);
   const doneRef = useRef(onDone);
@@ -38,25 +50,38 @@ export function RewardReveal({ reward, onDone }: { reward: Reward; onDone: () =>
     // Opacidad: aparece durante la subida, se mantiene en el brinquito, se desvanece en la caída.
     opacity.value = withSequence(
       withTiming(1, { duration: RISE_MS, easing: Easing.out(Easing.cubic) }),
-      withDelay(HOP_MS, withTiming(0, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })),
+      withDelay(
+        HOP_MS,
+        withTiming(0, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }),
+      ),
     );
     // translateY: A subir al centro · B brinquito (arriba/abajo) · C caer rápido -> onDone.
     translateY.value = withSequence(
       withTiming(0, { duration: RISE_MS, easing: Easing.out(Easing.cubic) }),
-      withTiming(-24, { duration: HOP_MS / 2, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: HOP_MS / 2, easing: Easing.in(Easing.quad) }),
-      withTiming(BELOW, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (finished) => {
-        'worklet';
-        if (finished) runOnJS(fire)();
+      withTiming(-24, {
+        duration: HOP_MS / 2,
+        easing: Easing.out(Easing.quad),
       }),
+      withTiming(0, { duration: HOP_MS / 2, easing: Easing.in(Easing.quad) }),
+      withTiming(
+        BELOW,
+        { duration: FALL_MS, easing: Easing.in(Easing.cubic) },
+        (finished) => {
+          'worklet';
+          if (finished) runOnJS(fire)();
+        },
+      ),
     );
-  }, []);
+    // opacity/translateY are Reanimated SharedValues: stable identity across renders.
+  }, [opacity, translateY]);
 
   const objectStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: opacity.value * 0.35 }));
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value * 0.35,
+  }));
 
   const visual = rewardVisual(reward);
 
@@ -65,7 +90,11 @@ export function RewardReveal({ reward, onDone }: { reward: Reward; onDone: () =>
       <Animated.View style={[styles.backdrop, backdropStyle]} />
       <Animated.View style={[styles.object, objectStyle]}>
         {'icon' in visual ? (
-          <Image source={ICON_SOURCE[visual.icon]} style={styles.image} resizeMode="contain" />
+          <Image
+            source={ICON_SOURCE[visual.icon]}
+            style={styles.image}
+            resizeMode="contain"
+          />
         ) : (
           <Text style={styles.emoji}>{visual.emoji}</Text>
         )}
@@ -82,7 +111,12 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000' },
-  object: { width: OBJECT, height: OBJECT, alignItems: 'center', justifyContent: 'center' },
+  object: {
+    width: OBJECT,
+    height: OBJECT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   image: { width: OBJECT, height: OBJECT },
   emoji: { fontSize: OBJECT * 0.8 },
 });

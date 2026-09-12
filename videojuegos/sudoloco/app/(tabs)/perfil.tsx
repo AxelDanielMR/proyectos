@@ -4,8 +4,12 @@ import { Text } from '@ui/primitives/Text';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { useAuthStore, useUserProfile, useUpdateSymbolPack } from '@features/auth';
-import { SYMBOL_PACKS } from '@core/symbols';
+import {
+  useAuthStore,
+  useUserProfile,
+  useUpdateSymbolPack,
+} from '@features/auth';
+import { SYMBOL_PACKS } from '@ui/symbols';
 import { colors } from '@theme/colors';
 import { useStatusBarConfig } from '@/providers/StatusBarProvider';
 
@@ -19,7 +23,7 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       setConfig({ backgroundColor: '#0f172a', barStyle: 'light' });
-    }, [setConfig])
+    }, [setConfig]),
   );
 
   if (isLoading) {
@@ -45,9 +49,15 @@ export default function ProfileScreen() {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <Stat label={t('profile.highscore')} value={profile?.stats.highscore ?? 0} />
+          <Stat
+            label={t('profile.highscore')}
+            value={profile?.stats.highscore ?? 0}
+          />
           <Stat label={t('profile.coins')} value={profile?.wallet.coins ?? 0} />
-          <Stat label={t('profile.totalGames')} value={profile?.stats.totalGames ?? 0} />
+          <Stat
+            label={t('profile.totalGames')}
+            value={profile?.stats.totalGames ?? 0}
+          />
         </View>
 
         {/* Symbol pack selector */}
@@ -55,7 +65,8 @@ export default function ProfileScreen() {
         <View style={styles.packRow}>
           {SYMBOL_PACKS.map((pack) => {
             const isActive = profile?.active.symbolPackId === pack.id;
-            const isUnlocked = profile?.unlocked.symbolPackIds.includes(pack.id) ?? false;
+            const isUnlocked =
+              profile?.unlocked.symbolPackIds.includes(pack.id) ?? false;
             return (
               <Pressable
                 key={pack.id}
@@ -71,7 +82,9 @@ export default function ProfileScreen() {
                   }
                 }}
               >
-                <Text style={[styles.packLabel, isActive && styles.packLabelActive]}>
+                <Text
+                  style={[styles.packLabel, isActive && styles.packLabelActive]}
+                >
                   {pack.name}
                 </Text>
                 {!isUnlocked && <Text style={styles.lockIcon}>🔒</Text>}
