@@ -1,91 +1,57 @@
 # Sudoloco — guía para Claude
 
-> Lee esto al inicio de cada conversación. Es el resumen operativo. La fuente de verdad detallada es [ARCHITECTURE.md](ARCHITECTURE.md) — consúltala antes de tomar decisiones de diseño.
+> Resumen operativo. Fuente de verdad detallada: [ARCHITECTURE.md](ARCHITECTURE.md) — consúltala antes de decisiones de diseño.
 
-## Qué es el proyecto
+## Proyecto
 
 App móvil (Expo + RN) de Sudoku con varios modos:
 
-- **Sudoloco** — modo principal, roguelike. Run infinita: 3 vidas, timer que se acumula entre puzzles, cada celda correcta suma segundos. Game over al perder vidas o timer en 0. El objetivo es batir el propio highscore. **Al terminar la run se canjean monedas** (en función del score) que persisten en el perfil y se gastan en la tienda.
-- **Versus Islas** — multijugador asíncrono (mismo seed, cada quien resuelve el suyo, solo se sincroniza % de avance).
-- **Versus Mar** — multijugador tiempo real sobre el mismo tablero (RTDB). Puntos por celda correcta colocada primero.
-- **Cuento** — un sudoku revela 9 imágenes en orden al completar cada caja.
-- **Historia** — cuentos por capítulos (un sudoku = un capítulo).
-- **Microjuegos** — al completar una caja sale un microjuego estilo WarioWare. Las recompensas (score, vida, hint, golden cell) se aplican al `RunState` solo en modo Sudoloco. Los microjuegos se desbloquean apareciendo aleatoriamente.
-- **Biblioteca** — galería de cuentos completados **y** centro de customización: el usuario selecciona aquí el pack de símbolos activo y (a futuro) el skin del tablero. Es también la entrada a la tienda donde se compran packs/skins con monedas.
+- **Sudoloco** (principal, roguelike): run infinita, 3 vidas, timer acumulado entre puzzles, celda correcta suma segundos. Game over sin vidas o timer en 0. Objetivo: batir highscore propio. Al terminar la run se canjean monedas (según score) → persisten en perfil, se gastan en tienda.
+- **Versus Islas**: async, mismo seed, cada quien resuelve el suyo, solo se sincroniza % avance.
+- **Versus Mar**: tiempo real sobre el mismo tablero (RTDB), puntos por celda correcta colocada primero.
+- **Cuento**: sudoku revela 9 imágenes en orden al completar cada caja.
+- **Historia**: cuentos por capítulos (1 sudoku = 1 capítulo).
+- **Microjuegos**: al completar caja sale minijuego estilo WarioWare; recompensas (score/vida/hint/golden cell) solo afectan `RunState` en Sudoloco. Desbloqueo aleatorio.
+- **Biblioteca**: galería de cuentos completados + centro de customización (pack de símbolos activo, a futuro skin de tablero) + entrada a la tienda.
 
-## Motor de Sudoku compartido (3 capas — esto es el corazón)
+## Motor de Sudoku compartido (el corazón — 3 capas)
 
-Todos los modos comparten el mismo motor. **Nunca reimplementes lógica de jugar sudoku dentro de un modo** — todo pasa por estas tres capas:
+Todos los modos comparten el mismo motor. **Nunca reimplementes lógica de sudoku dentro de un modo.**
 
-```
-┌─ src/features/<modo>/  ──────────────────────────────────────┐
-│  Aporta solo: HUD propio, overlays (timer, microjuego,       │
-│  imagen de cuento, panel rival), reglas del modo (cuándo     │
-│  perder, qué hacer al completar caja).                       │
-│  Consume el motor vía store + callbacks.                     │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ consume
-┌─ src/ui/SudokuGame/  (capa compartida — Fase 3) ────────────┐
-│  createSudokuGameStore(opts) → Zustand store factory         │
-│    state: board, selectedIndex, notes, errorIndices,         │
-│           hintsRemaining, goldenRemaining, isComplete        │
-│    actions: select, place, toggleNote, useHint,              │
-│             useGoldenCell, clear                             │
-│    callbacks (los modos los suscriben):                      │
-│      onCellCorrect, onCellIncorrect, onBoxComplete,          │
-│      onPuzzleComplete                                        │
-│  <SudokuGame store pack /> — compone Board + NumberPad +     │
-│  botón hint + botón golden cell.                             │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ usa
-┌─ src/core/sudoku/  (puro — Fase 1 ✅, falta hints.ts) ──────┐
-│  generator · solver · validator · progress · difficulty      │
-│  + hints.ts (pendiente):                                     │
-│      revealCandidate(board, sol, idx) → CellValue[]          │
-│      pickHintCell(board, sol, rng)    → index                │
-│      revealRandomCell(board, sol, rng) → { idx, value }      │
-│  src/core/symbols/  packs (4 en scope: numbers, colors,      │
-│                            figures, sprites)                 │
-└──────────────────────────────────────────────────────────────┘
-```
+1. `src/core/sudoku/` (puro, Fase 1 ✅): generator · solver · validator · progress · difficulty · hints.ts (`revealCandidate`, `pickHintCell`, `revealRandomCell`). `src/core/symbols/` = packs (numbers, colors, figures, sprites).
+2. `src/ui/SudokuGame/` (capa compartida, Fase 3): `createSudokuGameStore(opts)` → factory Zustand (state: board, selectedIndex, notes, errorIndices, hintsRemaining, goldenRemaining, isComplete; actions: select, place, toggleNote, useHint, useGoldenCell, clear; callbacks que los modos suscriben: onCellCorrect, onCellIncorrect, onBoxComplete, onPuzzleComplete). `<SudokuGame store pack />` compone Board + NumberPad + botones hint/golden.
+3. `src/features/<modo>/`: solo HUD propio, overlays, reglas del modo. Consume el motor vía store + callbacks.
 
-**Reglas concretas del motor:**
-
-- El store guarda valores `1..9`. El `SymbolPack` es **solo render** — se pasa como prop a `<SudokuGame pack={...} />`. Cambiar pack = cero refactor.
-- **Store factory, no singleton.** Cada partida crea su instancia (necesario para Versus Mar con dos tableros simultáneos).
-- Los modos **no leen el tablero del store directamente para tomar decisiones de modo** — escuchan callbacks (`onCellCorrect`, `onBoxComplete`, etc.). Esto mantiene el motor agnóstico.
-- **Pistas** (`useHint`) = revela los candidatos correctos de una celda elegida automáticamente (peor celda actual o seleccionada). **Casilla dorada** (`useGoldenCell`) = revela el valor exacto de una celda. Lógica en `core/sudoku/hints.ts`, estado del uso en el store.
-- **Errores**: el store mantiene un `Set<number>` de índices con error. Lo llena `place()` al detectar movimiento inválido vía `validator.validateMove`. La UI ya pinta `isError`.
-- **Determinismo**: el motor recibe el `Puzzle` ya generado por `core/sudoku/generate(difficulty, seed)`. Nunca llama a `Math.random()`.
+Reglas del motor:
+- Store guarda `1..9`; `SymbolPack` es solo render (prop de `<SudokuGame pack={...} />`) — cambiar pack = cero refactor.
+- **Store factory, no singleton** (necesario para Versus Mar con dos tableros simultáneos).
+- Los modos no leen el tablero del store para decisiones de modo — solo escuchan callbacks.
+- Pistas (`useHint`) revelan candidatos correctos; casilla dorada (`useGoldenCell`) revela el valor exacto. Lógica en `core/sudoku/hints.ts`.
+- Errores: store mantiene `Set<number>` de índices, llenado por `place()` vía `validator.validateMove`.
+- Determinismo: el motor recibe el `Puzzle` ya generado por `core/sudoku/generate(difficulty, seed)`. Nunca `Math.random()`.
 
 ## Economía y customización
 
-- **Monedas**: persistentes en `/users/{uid}/wallet.coins`. Se ganan **solo al final de una run de Sudoloco** vía fórmula sobre el score final (definir en `core/sudoku/economy.ts` puro y testeable).
-- **Tienda** (`features/biblioteca/` o nueva `features/shop/`): cataloga packs y, a futuro, skins. Cada compra registra el `id` en `/users/{uid}/unlocked.symbolPacks[]` (o `boardSkins[]`).
-- **Packs de símbolos** (Fase 1 de tienda): `numbers` y `colors` gratis, `figures` y `sprites` (mugiwaras/jojos) desbloqueables. Definidos en `core/symbols/packs.ts`.
-- **Skins de tablero** (Fase futura, no ahora): marcos, fondos, esquinas decorativas. Cuando toque, irán en `core/board-skins/` con la misma arquitectura de packs.
-- **Selección activa**: el pack y skin activos son del perfil del usuario (`/users/{uid}/active.symbolPackId`), modificables desde Biblioteca.
+Monedas en `/users/{uid}/wallet.coins`, ganadas solo al final de una run de Sudoloco (fórmula en `core/sudoku/economy.ts`, puro/testeable). Tienda (en `features/biblioteca/` o `features/shop/`) vende packs/skins; compra registra `id` en `/users/{uid}/unlocked.symbolPacks[]` (o `boardSkins[]`). Packs: `numbers`/`colors` gratis, `figures`/`sprites` desbloqueables (`core/symbols/packs.ts`). Skins de tablero: fase futura, irán en `core/board-skins/` con misma arquitectura. Selección activa en `/users/{uid}/active.symbolPackId`, editable desde Biblioteca.
 
 ## Idioma
 
-- **El usuario habla y escribe en español.** Responde en español.
-- Strings de UI siempre vía `t('clave')` (i18n con `es`/`en`). Nunca literales en JSX.
+Usuario habla español → responde en español. Strings de UI siempre vía `t('clave')` (i18n es/en), nunca literales en JSX.
 
-## Stack (resumen)
+## Stack
 
-Expo SDK 54 · RN 0.81 · React 19 · TS estricto (`noUncheckedIndexedAccess`) · Expo Router (file-based, `typedRoutes`) · NativeWind 4 · Reanimated 4 · Zustand (una store por feature) · TanStack Query (datos remotos) · Firebase Spark (Auth + Firestore + RTDB + Storage) — **sin Cloud Functions** · Zod (validación runtime) · AsyncStorage + SecureStore (MMKV estaba en el plan original pero no se instaló) · i18next.
+Expo SDK 54 · RN 0.81 · React 19 · TS estricto (`noUncheckedIndexedAccess`) · Expo Router (file-based, typedRoutes) · NativeWind 4 · Reanimated 4 · Zustand (1 store/feature) · TanStack Query · Firebase Spark (Auth+Firestore+RTDB+Storage, **sin Cloud Functions**) · Zod · AsyncStorage + SecureStore (no MMKV) · i18next.
 
 ## Reglas de oro (no romper)
 
-1. `src/core/` es lógica pura — **no** importa React Native, Expo ni Firebase. Testeable con Jest sin emuladores.
-2. **Las features no se importan entre sí.** Si dos features comparten algo, sube a `core/`, `ui/`, `services/` o `lib/`.
-3. `services/` es la única vía a Firebase. Las features hablan con repositorios (`users.repo.ts`, `matches.repo.ts`), nunca con `firestore` directo.
+1. `src/core/` es lógica pura — no importa RN, Expo ni Firebase. Testeable con Jest sin emuladores.
+2. Las features no se importan entre sí — lo compartido sube a `core/`, `ui/`, `services/` o `lib/`.
+3. `services/` es la única vía a Firebase — features usan repositorios (`users.repo.ts`, etc.), nunca `firestore` directo.
 4. Una store de Zustand por feature. Sin store global.
 5. Estado remoto → React Query. Estado de UI → Zustand. No mezclar.
-6. Validar al entrar: datos de Firestore pasan por Zod antes de tipearlos.
+6. Datos de Firestore pasan por Zod antes de tipearlos.
 7. i18n desde el día 1 — sin strings literales en JSX.
-8. Sin comentarios salvo cuando el _por qué_ no sea obvio. Nombres descriptivos > comentarios.
+8. Sin comentarios salvo que el *por qué* no sea obvio. Nombres descriptivos > comentarios.
 
 ## Path aliases
 
@@ -115,34 +81,17 @@ src/providers/      AppProviders, QueryProvider
 src/theme/colors.ts · src/i18n/ · src/lib/env.ts
 ```
 
-## Estado actual (verificar con git si tienes dudas)
+## Estado actual (verificar con git si hay dudas)
 
-- **Fase 0 ✅** Infraestructura completa (Expo Router, NativeWind, Firebase client, i18n, providers, tipos, lint/format).
-- **Fase 1 ✅** Núcleo Sudoku completo, 152 tests Jest pasando (prng, validator, solver, generator, difficulty, progress, hints, rewards, economy, progression, symbols).
-- **Fase 2 ✅** UI base del tablero (`Board`, `Cell`, `NumberPad`, `ProgressBar`).
-- **UI menú principal ⏸️** En pausa con avances. `home.tsx` con título, 4 botones pixel-art y `SudokuBackground` (cascada de números reactiva al acelerómetro). Pendiente: conectar navegación de botones, tipografía pixel, decidir reutilización del fondo, pausar acelerómetro al perder foco.
-- **Fase 3 — siguiente.** Modo Sudoloco (roguelike). **📋 [Plan detallado](docs/superpowers/plans/2026-05-31-fase-3-sudoloco-roguelike.md)** — 16 tareas TDD (core puro, motor compartido SudokuGame, Sudoloco screen + HUD).
+Fase 0 ✅ infra · Fase 1 ✅ núcleo sudoku (152 tests) · Fase 2 ✅ UI base del tablero · UI menú principal ⏸️ pausado (falta conectar navegación, tipografía pixel, pausar acelerómetro al perder foco) · **Fase 3 — siguiente**: Sudoloco roguelike, plan detallado en [docs/superpowers/plans/2026-05-31-fase-3-sudoloco-roguelike.md](docs/superpowers/plans/2026-05-31-fase-3-sudoloco-roguelike.md). Fases completas en [ARCHITECTURE.md §12-13](ARCHITECTURE.md).
 
-Lista completa de fases en [ARCHITECTURE.md §12-13](ARCHITECTURE.md).
+## Mecánicas de Sudoloco (Fase 3)
 
-## Mecánicas del modo Sudoloco (Fase 3)
-
-```ts
-RunState { level, lives, timeRemaining, score, hints, goldenCells, phase }
-```
-
-- Inicio: `lives = 3`, `timeRemaining = 180s`, `score = 0`.
-- Celda correcta suma segundos por dificultad: **beginner +4s · intermediate +3s · hard +2s · expert +2s**.
-- Celda incorrecta: `lives--`. Sin vidas o sin tiempo → game over.
-- Puntuación: celda correcta `10 × (floor(level/5)+1)`, puzzle completo `500 × level`.
-- Progresión: niveles 1–3 beginner · 4–7 intermediate · 8–12 hard · 13+ expert.
-- El timer **se acumula** entre puzzles, no resetea.
-- Highscore → Firestore `/users/{uid}/stats.highscore` (Fase 4).
+`RunState { level, lives, timeRemaining, score, hints, goldenCells, phase }`. Inicio: lives=3, timeRemaining=180s, score=0. Celda correcta suma seg. por dificultad (beginner +4 · intermediate +3 · hard +2 · expert +2) y puntos `10×(floor(level/5)+1)`; completar puzzle suma `500×level`. Celda incorrecta: lives--. Game over sin vidas o sin tiempo. Niveles: 1–3 beginner · 4–7 intermediate · 8–12 hard · 13+ expert. Timer se acumula entre puzzles, no resetea. Highscore → Firestore `/users/{uid}/stats.highscore` (Fase 4).
 
 ## Multijugador en Spark (sin Cloud Functions)
 
-- **Versus Islas**: solo se sincroniza `progress[uid]` (0..100) en Firestore. El tablero es determinista por seed, ambos clientes lo generan localmente.
-- **Versus Mar**: estado en RTDB `/liveMatches/{matchId}`. Validación en Security Rules + `runTransaction()`. Cliente-autoritativo (trade-off aceptado).
+Versus Islas: solo se sincroniza `progress[uid]` (0..100) en Firestore, tablero determinista por seed generado en cliente. Versus Mar: estado en RTDB `/liveMatches/{matchId}`, validación en Security Rules + `runTransaction()`, cliente-autoritativo (trade-off aceptado).
 
 ## Modelo de datos
 
@@ -161,19 +110,19 @@ npm test               # Jest (solo core, sin RN)
 
 ## Cómo trabajar en este repo
 
-- **Antes de implementar algo nuevo**, verifica si la lógica pertenece a `core/` (sin deps de RN/Firebase) o a una feature. Si es lógica de sudoku, va a `core/` con tests Jest.
-- **Microjuegos**: antes de tocar `src/features/microgames/`, lee su guía [src/features/microgames/README.md](src/features/microgames/README.md) (contrato, registro, instrucciones animadas, assets).
-- **Tests primero para `core/`.** Cualquier código en `src/core/sudoku/` debe tener tests en `__tests__/`.
-- **No crear archivos de documentación** (planes, resúmenes, decisiones) salvo que el usuario lo pida explícitamente. `ARCHITECTURE.md` es el documento vivo del proyecto.
-- **No hacer commits** salvo que el usuario lo pida explícitamente.
-- **Plan Spark = sin Cloud Functions.** No proponer arquitecturas que requieran Blaze sin avisar.
-- **Determinismo del generador es contractual.** No introducir `Math.random()` ni `Date.now()` en `core/sudoku/`. Todo entra por el PRNG con seed.
-- El usuario usa **Windows + PowerShell**, no Bash. Para rutas y comandos del shell, usa sintaxis PowerShell.
-- El usuario prueba en **Android Studio** (emulador / dispositivo Android). iOS no es prioridad inmediata.
+- Antes de implementar algo nuevo, verifica si va en `core/` (sin deps RN/Firebase) o en una feature. Lógica de sudoku → `core/` con tests Jest.
+- Microjuegos: antes de tocar `src/features/microgames/`, lee [su README](src/features/microgames/README.md) (contrato, registro, assets).
+- Tests primero para `core/`: todo código en `src/core/sudoku/` necesita tests en `__tests__/`.
+- No crear archivos de documentación (planes, resúmenes) salvo que el usuario lo pida. `ARCHITECTURE.md` es el documento vivo.
+- No hacer commits salvo que el usuario lo pida.
+- Plan Spark = sin Cloud Functions; no proponer arquitecturas que requieran Blaze sin avisar.
+- Determinismo del generador es contractual: nada de `Math.random()`/`Date.now()` en `core/sudoku/`, todo vía PRNG con seed.
+- Usuario en **Windows + PowerShell** (no Bash) — usa sintaxis PowerShell para shell/rutas.
+- Usuario prueba en **Android Studio** (emulador/dispositivo). iOS no es prioridad.
 
 ## Cuándo preguntar antes de actuar
 
-- Decisiones de diseño no escritas en ARCHITECTURE.md (p. ej. nueva mecánica, cambio de modelo de datos).
+- Decisiones de diseño no escritas en ARCHITECTURE.md (nueva mecánica, cambio de modelo de datos).
 - Tocar Security Rules de Firebase.
 - Borrar/renombrar archivos fuera del scope de la tarea.
 - Instalar dependencias nuevas.

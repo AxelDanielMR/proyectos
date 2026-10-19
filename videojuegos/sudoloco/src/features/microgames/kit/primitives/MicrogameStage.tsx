@@ -6,7 +6,7 @@ export interface StageSize {
   height: number;
 }
 
-const MAX_STAGE_WIDTH = 360;
+const MAX_STAGE_WIDTH = 480;
 
 export const StageSizeContext = createContext<StageSize>({
   width: 0,
@@ -32,21 +32,19 @@ export function MicrogameStage({
     setAvailable({ width, height });
   };
 
-  // Encaja el stage dentro del espacio disponible en AMBOS ejes: con un
-  // aspectRatio angosto (p. ej. el fondo propio de fishing), fijar solo el
-  // ancho al 90% de la pantalla puede derivar un alto que no cabe verticalmente.
-  // El tamaño se calcula una sola vez acá y se pasa tal cual por contexto — no
-  // se vuelve a medir con un segundo onLayout, para que el contenido nunca
-  // reciba un tamaño distinto al que realmente tiene el box.
+  // Encaja el stage dentro del espacio disponible en AMBOS ejes.
+  // Se aumenta la cobertura al 95% del espacio disponible y el ancho máximo a 480
+  // para que en pantallas grandes el juego no se vea pequeño.
   const boxWidth =
     available.width > 0
       ? Math.min(
-          available.width * 0.9,
+          available.width * 0.95,
           MAX_STAGE_WIDTH,
-          available.height * 0.9 * aspectRatio,
+          available.height * 0.95 * aspectRatio,
         )
       : 0;
   const boxHeight = boxWidth / aspectRatio;
+
 
   return (
     <View

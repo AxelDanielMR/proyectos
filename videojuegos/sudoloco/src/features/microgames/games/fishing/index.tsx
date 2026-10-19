@@ -14,12 +14,10 @@ import {
   WATER_COLOR,
 } from './assets';
 
-// El stage adopta la proporción real del fondo en vez del 3/4 genérico, así el
-// arte (fondo, personaje y frames) no se recorta al encajar en el box.
-const backgroundSize = Image.resolveAssetSource(BACKGROUND);
-const STAGE_ASPECT_RATIO = backgroundSize
-  ? backgroundSize.width / backgroundSize.height
-  : 3 / 4;
+// El stage adopta la proporción real del arte (160x256). Se usa un valor fijo
+// para evitar inconsistencias si el asset no se ha resuelto aún, asegurando
+// que el contenedor tenga exactamente el aspecto del fondo.
+const STAGE_ASPECT_RATIO = 160 / 256;
 
 const DURATION_MS = 6000;
 // El propio juego debe detectar el timeout ANTES que el runner (mismo DURATION_MS
@@ -117,6 +115,8 @@ const Fishing: React.FC<MicrogameProps> = ({
   const loopFrame =
     BITE_LOOP_FRAMES[fishFrame(loopTick, BITE_LOOP_FRAMES.length)];
 
+  const fishSize = stage.width * 0.65;
+
   return (
     <TapZone
       x={0}
@@ -126,32 +126,34 @@ const Fishing: React.FC<MicrogameProps> = ({
       onTap={handleTap}
     >
       <View style={styles.scene}>
-        <Image source={BACKGROUND} style={styles.layer} resizeMode="cover" />
+        <Image source={BACKGROUND} style={styles.layer} resizeMode="stretch" />
 
         {phase === 'lose' ? (
           <>
             <Image
               source={CHARACTER_LOSE_FRAMES[0]}
               style={[styles.layer, { opacity: loseFrame === 0 ? 1 : 0 }]}
-              resizeMode="cover"
+              resizeMode="stretch"
             />
             <Image
               source={CHARACTER_LOSE_FRAMES[1]}
               style={[styles.layer, { opacity: loseFrame === 1 ? 1 : 0 }]}
-              resizeMode="cover"
+              resizeMode="stretch"
             />
           </>
         ) : (
-          <Image source={CHARACTER} style={styles.layer} resizeMode="cover" />
+          <Image source={CHARACTER} style={styles.layer} resizeMode="stretch" />
         )}
 
         {phase === 'playing' && biting && loopFrame !== undefined && (
-          <Image source={loopFrame} style={styles.layer} resizeMode="cover" />
+          <Image source={loopFrame} style={styles.layer} resizeMode="stretch" />
         )}
 
         {phase === 'win' && (
           <View style={styles.fishOverlay} pointerEvents="none">
-            <Text style={styles.fish}>{FISH.emoji}</Text>
+            <Text style={[styles.fish, { fontSize: fishSize }]}>
+              {FISH.emoji}
+            </Text>
           </View>
         )}
       </View>
@@ -188,5 +190,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fish: { fontSize: 110 },
+  fish: { textAlign: 'center' },
 });
